@@ -1,0 +1,7 @@
+Supports: Aplite, Basalt, Chalk, Diorite, Emery, Flint and Gabbro. English by default; French is selectable from Configure in the Pebble mobile app.
+
+Tick Every is a simple haptic timer that keeps running until you stop it. Choose an interval, optionally add a start delay, then launch the timer. The watch gives two short pulses when timing begins. It then vibrates at every cycle: once for cycle one, twice for cycle two, and so on. From cycle 10 onward, long pulses represent tens and short pulses represent units. Includes pause/resume and optional haptic counting. The timer works offline.
+
+Français
+
+Tick Every est un timer haptique simple qui tourne jusqu’à ce que vous l’arrêtiez. Choisissez un intervalle et, si besoin, un délai de démarrage. La montre émet deux petites vibrations au démarrage, puis vibre à chaque cycle : une fois au premier, deux fois au deuxième, etc. À partir du cycle 10, les vibrations longues indiquent les dizaines et les courtes les unités. Pause/reprise, comptage haptique désactivable et timer hors ligne.

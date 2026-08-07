@@ -5,8 +5,10 @@ l'app mobile Pebble et `pebble-tool` en 2026.
 
 ## Comportement de référence
 
-Tick Every est une watchapp native C, autonome et mono-fonction. Son parcours
-de configuration est linéaire : **Timer → Délai → Vibrations → Prêt**.
+Tick Every est une watchapp native C et mono-fonction. Son parcours de réglage
+est linéaire : **Timer → Délai → Vibrations → Prêt**. Le runtime du timer est
+autonome ; un petit composant PebbleKit JS sert uniquement à choisir la langue
+depuis **Configure** dans l'app mobile Pebble.
 
 ### Boutons et state machine
 
@@ -63,8 +65,9 @@ Le code haptique numérote ensuite chaque cycle :
 - cycle 12 : une longue puis deux courtes ;
 - cycle 55 : cinq longues puis cinq courtes.
 
-Dans l'implémentation, une impulsion courte dure 40 ms, une longue 180 ms et
-deux impulsions sont séparées par 20 ms. Le buffer statique accepte jusqu'à
+Dans l'implémentation, une impulsion courte dure 120 ms, une longue 300 ms et
+deux impulsions sont séparées par 50 ms. Ces durées rendent notamment les
+cycles 1 et 2 nettement plus perceptibles. Le buffer statique accepte jusqu'à
 **63 segments**, donc **32 impulsions** au maximum. Le motif doit aussi finir
 avec au moins 20 ms de marge avant le cycle suivant, afin que deux patterns ne
 se chevauchent pas et que le buffer ne soit pas réutilisé trop tôt. Si le code
@@ -73,23 +76,48 @@ loggé puis sauté. Le temps actif, le numéro de cycle et l'interface continuen
 sans interruption.
 
 Le toggle Vibrations coupe uniquement les codes numérotés. Le double pulse de
-départ reste toujours émis. Le timer, le délai et le toggle sont écrits dans le
-stockage persistant dès leur modification et relus au prochain lancement. Une
-valeur absente ou invalide est remplacée par le défaut : 5 s, aucun délai et
-vibrations activées.
+départ reste toujours émis. Le timer, le délai, le toggle et la langue sont
+écrits dans le stockage persistant et relus au prochain lancement. Une valeur
+absente ou invalide est remplacée par le défaut : 5 s, aucun délai, vibrations
+activées et interface anglaise.
+
+### Configuration mobile de la langue
+
+Le manifeste déclare la capability `configurable`. Depuis la fiche Tick Every
+dans l'app mobile, **Configure** ouvre la page HTTPS statique
+`src/pkjs/config.html`. Elle propose English et Français, sans analytics,
+cookie ou script tiers. `src/pkjs/index.js` valide la réponse puis envoie la
+clé AppMessage `LANGUAGE` (`0` pour l'anglais, `1` pour le français).
+
+La montre valide à nouveau cette valeur, l'écrit sous `PERSIST_KEY_LANGUAGE`
+et redessine l'état courant. Une valeur absente, mal formée ou hors de 0/1 est
+refusée. Le timer continue de fonctionner sans téléphone ni réseau ; Internet
+est requis uniquement pour charger la page de configuration.
 
 ### Interface et mémoire
 
-L'interface affiche le nom de l'app, l'état courant, la valeur principale, une
-information contextuelle et les commandes disponibles. Quatre points montrent
-la progression dans la configuration ; pendant le timer, ils sont remplacés
-par un rail d'activité indéfini.
+L'interface « Signal clair » dessine un fond blanc très contrasté. Un bandeau
+arrondi identifie l'état ; pendant la configuration, il porte aussi l'étape
+`1/4` à `4/4`. La valeur principale utilise `FONT_KEY_BITHAM_42_BOLD`, ou
+`FONT_KEY_BITHAM_30_BLACK` pour les valeurs longues. Les informations de
+contexte et les deux lignes d'actions utilisent
+`FONT_KEY_GOTHIC_18_BOLD`. Les copies restent courtes et la valeur conserve
+toujours la priorité visuelle.
 
-Un halo coloré s'étend au démarrage, à la reprise et à chaque cycle. Les
-animations utilisent un seul `AppTimer`, avec une frame toutes les 70 ms. Un
-second `AppTimer` assure les réveils exacts du runtime. Sur les écrans noir et
-blanc, les couleurs ont un fallback monochrome. Les marges et tailles
-s'adaptent aux écrans rectangulaires, ronds et à la définition d'emery.
+En exécution, le temps actif reste dominant et deux métriques explicites sont
+affichées dessous : `CYCLE n` et `TOUTES LES X s`. Les couleurs du bandeau
+distinguent la configuration, l'activité, la pause et la confirmation. Sur les
+écrans noir et blanc, le bandeau devient noir et le fond reste blanc. Sur les
+écrans ronds, la state machine et les boutons ne changent pas. Une UI dédiée
+exploite le cercle : anneau extérieur, capsule d'état placée sur une corde
+sûre, valeur centrale et deux actions en capsules. Chalk et Gabbro ont des
+géométries et tailles de police distinctes ; Gabbro utilise un affichage
+numérique 60 px pour le temps et les cycles.
+
+Un halo fin et discret apparaît au démarrage, à la reprise et à chaque cycle.
+Les animations utilisent un seul `AppTimer`, avec une frame toutes les 70 ms.
+Un second `AppTimer` assure les réveils exacts du runtime. Les marges et tailles
+s'adaptent aussi à la définition d'emery.
 
 Pour rester compatible avec le heap utile limité d'aplite — environ 24 Ko,
 contre 64 Ko ou plus sur basalt et les plateformes suivantes — l'app utilise
@@ -110,9 +138,11 @@ exactes en millisecondes et les bornes d'overflow.
 pebble build
 ```
 
-`tests/run.sh` compile en C99 avec `-Wall -Wextra -Werror -pedantic`, puis
-exécute le binaire. `pebble build` compile la watchapp pour toutes les
-plateformes déclarées et produit `build/tick-every.pbw`.
+`tests/run.sh` compile la logique portable en C99 avec
+`-Wall -Wextra -Werror -pedantic`, exécute ses 19 146 assertions, puis teste en
+Node la validation, la persistance et le retry de la langue côté PebbleKit JS.
+`pebble build` compile la watchapp pour toutes les plateformes déclarées et
+produit `build/tick-every.pbw`.
 
 ## Boucle émulateur
 
@@ -147,8 +177,11 @@ Tester au minimum ces scénarios :
    puis relancer par un appui long sur Select ;
 7. vérifier les codes des cycles 1, 9, 12 et 55, puis vérifier qu'un motif hors
    limite est sauté sans arrêter le compteur ni l'interface ;
-8. relancer l'app et vérifier la persistance des trois réglages ;
-9. contrôler le rendu sur basalt, chalk et aplite au minimum.
+8. relancer l'app et vérifier la persistance de l'intervalle, du délai, du
+   toggle haptique et de la langue ;
+9. depuis **Configure** dans l'app mobile, tester English → Français → English,
+   vérifier le changement immédiat et la persistance après relance ;
+10. contrôler le rendu sur basalt, chalk et aplite au minimum.
 
 Lors des vibrations, l'émulateur peut écrire des warnings de la forme
 `PHONESIM ... QemuInboundPacket.footer`. Ils viennent de la simulation QEMU et
@@ -169,7 +202,8 @@ ne correspondent pas à un `APP_LOG(APP_LOG_LEVEL_ERROR, ...)` de Tick Every.
 | `gabbro` | Pebble Round 2 | 260×260, rond, 64 couleurs |
 
 Une app ne peut être installée que si son `targetPlatforms` contient la
-plateforme choisie. Tick Every cible aplite, basalt, chalk, diorite et emery.
+plateforme choisie. Tick Every cible les sept plateformes : aplite, basalt,
+chalk, diorite, emery, flint et gabbro.
 
 ### Piloter les boutons
 

@@ -1,7 +1,9 @@
 build/
+.claude/
 .lock-waf*
 .pebble-sdk/
 node_modules/
 *.pbw
+/screenshot_basalt.png
 setup.log
 pebble-logs.txt

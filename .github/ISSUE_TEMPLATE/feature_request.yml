@@ -1,0 +1,68 @@
+name: Feature request
+description: Propose a focused improvement or a new use case
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea. English and French are both welcome.
+        Tick Every is intentionally a focused, glanceable repeating timer, so concrete use cases help assess a proposal.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Use case or problem
+      description: What are you trying to do, and what prevents it today?
+      placeholder: During …, I need … because …
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behaviour
+      description: Describe the smallest change that would solve the use case.
+    validations:
+      required: true
+
+  - type: textarea
+    id: example
+    attributes:
+      label: Concrete example
+      description: Include real interval, delay, button or haptic values when relevant.
+      placeholder: With an interval of … and a delay of …, the watch would …
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platforms
+    attributes:
+      label: Affected displays
+      options:
+        - All Pebble watches
+        - Rectangular displays
+        - Round displays
+        - Colour displays
+        - Monochrome displays
+        - Not display-related
+        - Unsure
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Optional. Explain any workaround or simpler alternative you tried.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues for a similar proposal.
+          required: true
+        - label: This keeps Tick Every focused on a repeating timer and cycle feedback.
+          required: true

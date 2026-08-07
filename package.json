@@ -1,7 +1,7 @@
 {
   "name": "tick-every",
-  "description": "A configurable repeating timer with optional vibration and a delayed start.",
-  "author": "MakeAwesomeHappen",
+  "description": "A repeating haptic timer that counts cycles on Pebble watches.",
+  "author": "G-Cyrille",
   "version": "1.0.0",
   "keywords": ["pebble-app"],
   "private": true,
@@ -16,16 +16,29 @@
       "basalt",
       "chalk",
       "diorite",
-      "emery"
+      "emery",
+      "flint",
+      "gabbro"
     ],
     "watchapp": {
       "watchface": false
     },
+    "capabilities": [
+      "configurable"
+    ],
     "messageKeys": [
-      "dummy"
+      "LANGUAGE"
     ],
     "resources": {
-      "media": []
+      "media": [
+        {
+          "type": "bitmap",
+          "name": "MENU_ICON",
+          "file": "images/menu_icon.png",
+          "memoryFormat": "1Bit",
+          "menuIcon": true
+        }
+      ]
     }
   }
 }

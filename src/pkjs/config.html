@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#6cb7d8">
+  <title>Tick Every — Settings</title>
+  <style>
+    :root { --ink:#102a43; --blue:#6cb7d8; --green:#2d8c68; --orange:#f3a83b; --paper:#f7f3e8; --white:#fff; }
+    * { box-sizing: border-box; }
+    body { margin:0; color:var(--ink); background:var(--paper); font:17px/1.45 system-ui,-apple-system,sans-serif; }
+    header { padding:34px 22px 26px; background:var(--blue); }
+    .title { display:flex; align-items:center; gap:14px; max-width:620px; margin:auto; }
+    .clock { position:relative; flex:0 0 58px; width:58px; height:58px; border:5px solid var(--ink); border-radius:50%; background:var(--white); }
+    .clock::before { content:""; position:absolute; left:24px; top:8px; width:5px; height:23px; border-radius:3px; background:var(--ink); }
+    .clock::after { content:""; position:absolute; left:26px; top:27px; width:18px; height:5px; border-radius:3px; background:var(--ink); transform:rotate(32deg); transform-origin:left center; }
+    h1 { margin:0; font-size:30px; line-height:1.05; }
+    header p { margin:6px 0 0; font-size:15px; font-weight:700; letter-spacing:.05em; }
+    main { max-width:620px; margin:auto; padding:28px 20px 42px; }
+    h2 { margin:0 0 6px; font-size:24px; }
+    .hint { margin:0 0 22px; color:#334e68; }
+    .options { display:grid; gap:13px; }
+    label { display:flex; align-items:center; gap:14px; padding:18px; background:var(--white); border:3px solid transparent; border-radius:14px; box-shadow:0 3px 0 rgba(16,42,67,.12); cursor:pointer; }
+    label:has(input:checked) { border-color:var(--green); }
+    input { width:22px; height:22px; margin:0; accent-color:var(--green); }
+    strong { display:block; font-size:19px; }
+    small { display:block; margin-top:2px; color:#486581; }
+    button { width:100%; margin-top:24px; padding:16px 20px; border:0; border-radius:14px; color:var(--white); background:var(--green); font:700 18px system-ui,-apple-system,sans-serif; box-shadow:0 4px 0 #1d654b; cursor:pointer; }
+    button:active { transform:translateY(2px); box-shadow:0 2px 0 #1d654b; }
+    .privacy { margin:22px 4px 0; font-size:14px; color:#627d98; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title">
+      <div class="clock" aria-hidden="true"></div>
+      <div><h1>Tick Every</h1><p>SETTINGS · RÉGLAGES</p></div>
+    </div>
+  </header>
+  <main>
+    <h2>Watch language</h2>
+    <p class="hint">Langue de l’interface sur la montre</p>
+    <form id="settings">
+      <div class="options">
+        <label>
+          <input type="radio" name="language" value="0" checked>
+          <span><strong>English</strong><small>Default watch interface</small></span>
+        </label>
+        <label>
+          <input type="radio" name="language" value="1">
+          <span><strong>Français</strong><small>Interface de la montre en français</small></span>
+        </label>
+      </div>
+      <button type="submit">Save · Enregistrer</button>
+    </form>
+    <p class="privacy">This setting is stored locally by the Pebble app and on your watch. No personal data is collected.</p>
+  </main>
+  <script>
+    (function() {
+      var params = new URLSearchParams(window.location.search);
+      var language = params.get('language') === '1' ? '1' : '0';
+      var selected = document.querySelector('input[name="language"][value="' + language + '"]');
+      if (selected) selected.checked = true;
+
+      document.getElementById('settings').addEventListener('submit', function(event) {
+        event.preventDefault();
+        var value = document.querySelector('input[name="language"]:checked').value;
+        var payload = encodeURIComponent(JSON.stringify({ language: Number(value) }));
+        window.location.href = 'pebblejs://close#' + payload;
+      });
+    }());
+  </script>
+</body>
+</html>

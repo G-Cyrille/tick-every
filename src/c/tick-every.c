@@ -1,4 +1,5 @@
 #include <pebble.h>
+#include <message_keys.auto.h>
 
 #include "timer_logic.h"
 
@@ -6,10 +7,12 @@
 #define PERSIST_KEY_TIMER 4
 #define PERSIST_KEY_DELAY 2
 #define PERSIST_KEY_HAPTICS 3
+#define PERSIST_KEY_LANGUAGE 5
 
 #define DEFAULT_TIMER_SECONDS 5U
 #define DEFAULT_DELAY_SECONDS 0U
 #define DEFAULT_HAPTICS_ENABLED true
+#define DEFAULT_LANGUAGE LANGUAGE_ENGLISH
 
 #define LONG_PRESS_MS 700U
 #define ANIMATION_STEP_MS 70U
@@ -18,6 +21,9 @@
 #define HAPTIC_SEGMENT_CAPACITY 63U
 #define HAPTIC_MAX_PULSES ((HAPTIC_SEGMENT_CAPACITY + 1U) / 2U)
 #define HAPTIC_DEADLINE_MARGIN_MS 20U
+#define HAPTIC_SHORT_PULSE_MS 120U
+#define HAPTIC_LONG_PULSE_MS 300U
+#define HAPTIC_GAP_MS 50U
 
 typedef enum {
   APP_STATE_SET_TIMER = 0,
@@ -29,6 +35,11 @@ typedef enum {
   APP_STATE_PAUSED,
   APP_STATE_STOP_CONFIRM
 } AppState;
+
+typedef enum {
+  LANGUAGE_ENGLISH = 0,
+  LANGUAGE_FRENCH
+} Language;
 
 typedef enum {
   ANIMATION_NONE = 0,
@@ -54,6 +65,7 @@ static unsigned int s_animation_frame;
 static unsigned int s_timer_seconds = DEFAULT_TIMER_SECONDS;
 static unsigned int s_delay_seconds = DEFAULT_DELAY_SECONDS;
 static bool s_haptics_enabled = DEFAULT_HAPTICS_ENABLED;
+static Language s_language = DEFAULT_LANGUAGE;
 static unsigned int s_elapsed_seconds;
 static uint64_t s_cycle;
 static bool s_haptic_limit_logged;
@@ -82,6 +94,11 @@ static const char *prv_state_name(AppState state) {
     case APP_STATE_STOP_CONFIRM: return "stop-confirm";
   }
   return "unknown";
+}
+
+/* Selects the active translation without allocating localized strings. */
+static const char *prv_text(const char *english, const char *french) {
+  return s_language == LANGUAGE_FRENCH ? french : english;
 }
 
 /* Invalidates the single custom layer when it is currently loaded. */
@@ -218,8 +235,26 @@ static void prv_load_settings(void) {
                             s_haptics_enabled ? 1 : 0, "haptics");
   }
 
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "Settings loaded: timer=%u delay=%u haptics=%d",
-          s_timer_seconds, s_delay_seconds, s_haptics_enabled ? 1 : 0);
+  if (persist_exists(PERSIST_KEY_LANGUAGE)) {
+    value = persist_read_int(PERSIST_KEY_LANGUAGE);
+    if (value == LANGUAGE_ENGLISH || value == LANGUAGE_FRENCH) {
+      s_language = (Language)value;
+    } else {
+      APP_LOG(APP_LOG_LEVEL_ERROR, "Invalid persisted language: %d", value);
+      s_language = DEFAULT_LANGUAGE;
+      prv_persist_int_checked(PERSIST_KEY_LANGUAGE, (int)s_language,
+                              "language");
+    }
+  } else {
+    s_language = DEFAULT_LANGUAGE;
+    prv_persist_int_checked(PERSIST_KEY_LANGUAGE, (int)s_language,
+                            "language");
+  }
+
+  APP_LOG(APP_LOG_LEVEL_DEBUG,
+          "Settings loaded: timer=%u delay=%u haptics=%d language=%d",
+          s_timer_seconds, s_delay_seconds, s_haptics_enabled ? 1 : 0,
+          (int)s_language);
 }
 
 /* Formats elapsed or configured time compactly for every display size. */
@@ -234,6 +269,48 @@ static void prv_format_time(unsigned int seconds, char *buffer,
              remaining_seconds);
   } else {
     snprintf(buffer, buffer_size, "%u:%02u", minutes, remaining_seconds);
+  }
+}
+
+/* Keeps an unbounded cycle count readable once exact digits exceed the dial. */
+static void prv_format_cycle(uint64_t cycle, char *buffer,
+                             size_t buffer_size) {
+  uint64_t divisor;
+  const char *suffix;
+
+  if (cycle < 1000000ULL) {
+    snprintf(buffer, buffer_size, "%llu", (unsigned long long)cycle);
+    return;
+  }
+  if (cycle < 1000000000ULL) {
+    divisor = 1000000ULL;
+    suffix = "M";
+  } else if (cycle < 1000000000000ULL) {
+    divisor = 1000000000ULL;
+    suffix = "B";
+  } else if (cycle < 1000000000000000ULL) {
+    divisor = 1000000000000ULL;
+    suffix = "T";
+  } else {
+    snprintf(buffer, buffer_size, "999T+");
+    return;
+  }
+
+  snprintf(buffer, buffer_size, "%llu.%llu%s",
+           (unsigned long long)(cycle / divisor),
+           (unsigned long long)((cycle % divisor) / (divisor / 10ULL)),
+           suffix);
+}
+
+/* Formats the configured interval for narrow round-screen context lines. */
+static void prv_format_interval_short(unsigned int seconds, char *buffer,
+                                      size_t buffer_size) {
+  if (seconds == 3600U) {
+    snprintf(buffer, buffer_size, "1 h");
+  } else if (seconds >= 60U) {
+    snprintf(buffer, buffer_size, "%u:%02u", seconds / 60U, seconds % 60U);
+  } else {
+    snprintf(buffer, buffer_size, "%u s", seconds);
   }
 }
 
@@ -354,9 +431,10 @@ static void prv_vibrate_for_cycle(uint64_t cycle,
 
   pulse_count = (unsigned int)(code.long_vibrations +
                                code.short_vibrations);
-  pattern_duration_ms = (unsigned int)code.long_vibrations * 180U +
-                        (unsigned int)code.short_vibrations * 40U +
-                        (pulse_count - 1U) * 20U;
+  pattern_duration_ms =
+      (unsigned int)code.long_vibrations * HAPTIC_LONG_PULSE_MS +
+      (unsigned int)code.short_vibrations * HAPTIC_SHORT_PULSE_MS +
+      (pulse_count - 1U) * HAPTIC_GAP_MS;
   if (available_ms <= HAPTIC_DEADLINE_MARGIN_MS ||
       pattern_duration_ms > available_ms - HAPTIC_DEADLINE_MARGIN_MS) {
     if (!s_haptic_limit_logged) {
@@ -371,15 +449,15 @@ static void prv_vibrate_for_cycle(uint64_t cycle,
   s_haptic_limit_logged = false;
   vibes_cancel();
   for (index = 0U; index < code.long_vibrations; ++index) {
-    s_haptic_durations[segment_count++] = 180U;
+    s_haptic_durations[segment_count++] = HAPTIC_LONG_PULSE_MS;
     if (segment_count < pulse_count * 2U - 1U) {
-      s_haptic_durations[segment_count++] = 20U;
+      s_haptic_durations[segment_count++] = HAPTIC_GAP_MS;
     }
   }
   for (index = 0U; index < code.short_vibrations; ++index) {
-    s_haptic_durations[segment_count++] = 40U;
+    s_haptic_durations[segment_count++] = HAPTIC_SHORT_PULSE_MS;
     if (segment_count < pulse_count * 2U - 1U) {
-      s_haptic_durations[segment_count++] = 20U;
+      s_haptic_durations[segment_count++] = HAPTIC_GAP_MS;
     }
   }
 
@@ -507,135 +585,269 @@ static void prv_draw_text(GContext *ctx, const char *text, GFont font,
                      alignment, NULL);
 }
 
-/* Draws an endless moving activity rail or a setup breadcrumb. */
-static void prv_draw_progress(GContext *ctx, GRect bounds, int16_t margin,
-                              int16_t y) {
-  const int16_t width = bounds.size.w - margin * 2;
-  const GColor track = PBL_IF_COLOR_ELSE(GColorLightGray, GColorWhite);
-  const GColor fill = PBL_IF_COLOR_ELSE(GColorJaegerGreen, GColorBlack);
-  unsigned int step = 0U;
-  unsigned int index;
-
-  if (s_state == APP_STATE_RUNNING || s_state == APP_STATE_PAUSED ||
-      s_state == APP_STATE_STOP_CONFIRM) {
-    const int16_t marker_width = width / 4;
-    const int16_t travel = width - marker_width;
-    const int16_t marker_x = margin + (int16_t)(
-        ((uint32_t)travel * (s_elapsed_seconds % 8U)) / 7U);
-    graphics_context_set_fill_color(ctx, track);
-    graphics_fill_rect(ctx, GRect(margin, y, width, 5), 2, GCornersAll);
-    graphics_context_set_stroke_color(
-        ctx, PBL_IF_COLOR_ELSE(GColorLightGray, GColorBlack));
-    graphics_draw_round_rect(ctx, GRect(margin, y, width, 5), 2);
-    graphics_context_set_fill_color(ctx, fill);
-    graphics_fill_rect(ctx, GRect(marker_x, y, marker_width, 5), 2,
-                       GCornersAll);
-    return;
-  }
-
-  if (s_state <= APP_STATE_READY) {
-    step = (unsigned int)s_state;
-  } else if (s_state == APP_STATE_WAITING) {
-    step = 3U;
-  }
-  for (index = 0U; index < 4U; ++index) {
-    const int16_t x = bounds.size.w / 2 - 24 + (int16_t)index * 16;
-    graphics_context_set_fill_color(ctx, index <= step ? fill : track);
-    graphics_fill_circle(ctx, GPoint(x, y + 2), index == step ? 4 : 3);
-    graphics_context_set_stroke_color(ctx, fill);
-    graphics_draw_circle(ctx, GPoint(x, y + 2), index == step ? 4 : 3);
-  }
-}
-
-/* Adds an expanding, cheerful halo for active starts and cycle boundaries. */
+/* Adds a restrained halo behind the main value at active pulse boundaries. */
 static void prv_draw_animation(GContext *ctx, GRect bounds, int16_t center_y) {
   if (s_animation_kind == ANIMATION_PULSE && s_animation_frame > 0U) {
     const unsigned int progressed = PULSE_FRAME_COUNT - s_animation_frame;
-    const int16_t radius = (int16_t)(25U + progressed * 3U);
+    const int16_t radius = (int16_t)(18U + progressed * 2U);
     const GColor halo = PBL_IF_COLOR_ELSE(
-        (progressed % 2U) ? GColorChromeYellow : GColorCyan, GColorBlack);
+        (progressed % 2U) ? GColorChromeYellow : GColorPictonBlue,
+        GColorBlack);
     graphics_context_set_stroke_color(ctx, halo);
-    graphics_context_set_stroke_width(ctx, 2);
+    graphics_context_set_stroke_width(ctx, 1);
     graphics_draw_circle(ctx, GPoint(bounds.size.w / 2, center_y), radius);
+  }
+}
+
+/* Gives round displays a watch-like focal ring instead of an empty center. */
+static void prv_draw_round_dial(GContext *ctx, GRect bounds, int16_t center_y,
+                                GColor accent) {
+  if (!PBL_IF_ROUND_ELSE(true, false)) {
+    return;
+  }
+
+  const bool large_round = bounds.size.w >= 240;
+  const int16_t radius = bounds.size.w / 2 - (large_round ? 14 : 13);
+  const int16_t dot_radius = large_round ? 3 : 2;
+  const GPoint center = GPoint(bounds.size.w / 2, center_y);
+  const GColor ring = PBL_IF_COLOR_ELSE(GColorLightGray, GColorBlack);
+
+  graphics_context_set_stroke_color(ctx, ring);
+  graphics_context_set_stroke_width(ctx, large_round ? 3 : 2);
+  graphics_draw_circle(ctx, center, radius);
+
+  graphics_context_set_fill_color(ctx, accent);
+  graphics_fill_circle(ctx, GPoint(center.x, center.y - radius), dot_radius);
+  graphics_fill_circle(ctx, GPoint(center.x + radius, center.y), dot_radius);
+  graphics_fill_circle(ctx, GPoint(center.x - radius, center.y), dot_radius);
+}
+
+/* Draws one explicit state band, with the current setup step when relevant. */
+static void prv_draw_state_band(GContext *ctx, GRect rect,
+                                const char *state_text,
+                                const char *step_text, GColor background,
+                                GColor foreground, GFont font) {
+  const int16_t horizontal_padding = 7;
+  graphics_context_set_fill_color(ctx, background);
+  graphics_fill_rect(ctx, rect, 5, GCornersAll);
+
+  if (step_text[0] != '\0') {
+    const int16_t step_width = PBL_IF_ROUND_ELSE(38, 48);
+    prv_draw_text(ctx, state_text, font,
+                  GRect(rect.origin.x + horizontal_padding, rect.origin.y,
+                        rect.size.w - step_width - horizontal_padding,
+                        rect.size.h),
+                  GTextAlignmentLeft, foreground);
+    prv_draw_text(ctx, step_text, font,
+                  GRect(rect.origin.x + rect.size.w - step_width,
+                        rect.origin.y, step_width - horizontal_padding,
+                        rect.size.h),
+                  GTextAlignmentRight, foreground);
+  } else {
+    prv_draw_text(ctx, state_text, font, rect, GTextAlignmentCenter,
+                  foreground);
+  }
+}
+
+/* Reserves two stable, high-contrast rows for the available button actions. */
+static void prv_draw_actions(GContext *ctx, GRect bounds, int16_t y,
+                             const char *first_action,
+                             const char *second_action, GFont font) {
+  const bool round = PBL_IF_ROUND_ELSE(true, false);
+  const bool large_round = round && bounds.size.w >= 240;
+  const int16_t margin = round ? (large_round ? 50 : 32) : 0;
+  const int16_t width = bounds.size.w - margin * 2;
+  const int16_t second_margin = round ? (large_round ? 85 : 57) : margin;
+  const int16_t second_width = bounds.size.w - second_margin * 2;
+  const int16_t row_height = large_round ? 27 : 20;
+  const int16_t second_row_height = large_round ? 22 : 17;
+  const int16_t row_gap = round ? (large_round ? 2 : 1) : 0;
+  const GColor background = PBL_IF_COLOR_ELSE(GColorLightGray, GColorWhite);
+  const GColor foreground = GColorBlack;
+
+  graphics_context_set_fill_color(ctx, background);
+  graphics_context_set_stroke_color(ctx, foreground);
+  if (round) {
+    if (first_action[0] != '\0') {
+      graphics_fill_rect(ctx, GRect(margin, y, width, row_height), 6,
+                         GCornersAll);
+      graphics_draw_round_rect(ctx, GRect(margin, y, width, row_height), 6);
+    }
+    if (second_action[0] != '\0') {
+      graphics_fill_rect(ctx,
+                         GRect(second_margin, y + row_height + row_gap,
+                               second_width, second_row_height),
+                         6, GCornersAll);
+      graphics_draw_round_rect(ctx,
+                               GRect(second_margin,
+                                     y + row_height + row_gap, second_width,
+                                     second_row_height),
+                               6);
+    }
+  } else {
+    graphics_fill_rect(ctx, GRect(margin, y, width, row_height * 2), 0,
+                       GCornerNone);
+    graphics_draw_line(ctx, GPoint(margin, y), GPoint(margin + width, y));
+    graphics_draw_line(ctx, GPoint(margin, y + row_height),
+                       GPoint(margin + width, y + row_height));
+  }
+
+  if (first_action[0] != '\0') {
+    prv_draw_text(ctx, first_action, font,
+                  GRect(margin + 2, y, width - 4, row_height),
+                  GTextAlignmentCenter, foreground);
+  }
+  if (second_action[0] != '\0') {
+    const GFont second_font = large_round
+        ? fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD) : font;
+    prv_draw_text(ctx, second_action, second_font,
+                  GRect(second_margin + 2, y + row_height + row_gap,
+                        second_width - 4, second_row_height),
+                  GTextAlignmentCenter, foreground);
   }
 }
 
 /* Renders the complete interface on one lightweight platform-adaptive layer. */
 static void prv_canvas_update_proc(Layer *layer, GContext *ctx) {
   const GRect bounds = layer_get_bounds(layer);
-  const int16_t margin = PBL_IF_ROUND_ELSE(18, 6);
+  const bool round = PBL_IF_ROUND_ELSE(true, false);
+  const bool large_round = round && bounds.size.w >= 240;
+  const int16_t margin = round ? (large_round ? 38 : 27) : 5;
+  const int16_t band_margin = round ? (large_round ? 57 : 38) : margin;
   const int16_t content_width = bounds.size.w - margin * 2;
-  const int16_t header_y = PBL_IF_ROUND_ELSE(8, 2);
-  const int16_t state_y = header_y + 18;
-  const int16_t main_y = (int16_t)(bounds.size.h * 27 / 100);
-  const int16_t main_height = PBL_IF_ROUND_ELSE(48, 44);
-  const int16_t progress_y = (int16_t)(bounds.size.h * 57 / 100);
-  const int16_t info_y = progress_y + 9;
-  const int16_t hint_y = bounds.size.h - PBL_IF_ROUND_ELSE(54, 40);
-  const int16_t hint_top_margin = PBL_IF_ROUND_ELSE(30, margin);
-  const int16_t hint_bottom_margin = PBL_IF_ROUND_ELSE(40, margin);
-  const GColor background = PBL_IF_COLOR_ELSE(GColorPictonBlue, GColorWhite);
-  const GColor foreground = PBL_IF_COLOR_ELSE(GColorWhite, GColorBlack);
-  const GColor accent = PBL_IF_COLOR_ELSE(GColorChromeYellow, GColorBlack);
-  const GColor muted = PBL_IF_COLOR_ELSE(GColorLightGray, GColorBlack);
-  const GFont tiny_font = fonts_get_system_font(FONT_KEY_GOTHIC_14);
-  const GFont bold_font = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
-  const GFont hint_top_font = tiny_font;
+  const int16_t band_y = round ? (large_round ? 26 : 18) : 0;
+  const int16_t band_height = large_round ? 36 : 27;
+  const int16_t footer_y = round
+      ? (large_round ? 187 : 123)
+      : bounds.size.h - 44;
+  const int16_t block_height = round ? (large_round ? 105 : 73) : 92;
+  const int16_t content_top = band_y + band_height + 2;
+  const int16_t available_height = footer_y - content_top;
+  const int16_t main_y = round
+      ? (large_round ? 78 : 55)
+      : content_top + (available_height - block_height) / 2;
+  const int16_t main_height = round ? (large_round ? 76 : 52) : 48;
+  const int16_t info_height = large_round ? 29 : 22;
+  const int16_t info_first_y = main_y + main_height;
+  const int16_t info_second_y = info_first_y + info_height;
+  const GColor background = GColorWhite;
+  const GColor foreground = GColorBlack;
+  GColor band_background = PBL_IF_COLOR_ELSE(GColorPictonBlue, GColorBlack);
+  GColor band_foreground = PBL_IF_COLOR_ELSE(GColorBlack, GColorWhite);
+  const GFont label_font = fonts_get_system_font(
+      round && !large_round ? FONT_KEY_GOTHIC_14_BOLD
+                            : FONT_KEY_GOTHIC_18_BOLD);
+  const GFont info_font = fonts_get_system_font(
+      large_round ? FONT_KEY_GOTHIC_24_BOLD
+                  : (round ? FONT_KEY_GOTHIC_14_BOLD
+                           : FONT_KEY_GOTHIC_18_BOLD));
+  const GFont action_font = fonts_get_system_font(
+      large_round ? FONT_KEY_GOTHIC_24_BOLD
+                  : (round ? FONT_KEY_GOTHIC_14_BOLD
+                           : FONT_KEY_GOTHIC_18_BOLD));
   const GFont value_font = fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD);
   const GFont compact_value_font =
       fonts_get_system_font(FONT_KEY_BITHAM_30_BLACK);
+  const GFont round_word_font = fonts_get_system_font(
+      large_round ? FONT_KEY_BITHAM_42_BOLD : FONT_KEY_GOTHIC_28_BOLD);
   GFont main_font = value_font;
   char state_text[24];
+  char step_text[8];
   char value_text[24];
-  char info_text[48];
-  char hint_top[40];
-  char hint_bottom[40];
+  char info_first[48];
+  char info_second[48];
+  char elapsed_text[16];
+  char cycle_text[16];
+  char interval_text[16];
+  char first_action[40];
+  char second_action[40];
 
   graphics_context_set_fill_color(ctx, background);
   graphics_fill_rect(ctx, bounds, 0, GCornerNone);
 
   snprintf(state_text, sizeof(state_text), "TIMER");
-  snprintf(value_text, sizeof(value_text), "%u s", s_timer_seconds);
-  snprintf(info_text, sizeof(info_text), "Intervalle répétitif");
-  snprintf(hint_top, sizeof(hint_top), "Haut/Bas : régler");
-  snprintf(hint_bottom, sizeof(hint_bottom), "Select >   Back <");
+  snprintf(step_text, sizeof(step_text), "1/4");
+  prv_format_time(s_timer_seconds, value_text, sizeof(value_text));
+  snprintf(info_first, sizeof(info_first), "%s",
+           prv_text("INTERVAL", "INTERVALLE"));
+  snprintf(info_second, sizeof(info_second), "%s",
+           prv_text("REPEATS FOREVER", "SANS FIN"));
+  snprintf(first_action, sizeof(first_action), "%s",
+           prv_text("UP/DOWN SET", "HAUT/BAS RÉGLER"));
+  snprintf(second_action, sizeof(second_action), "%s",
+           prv_text("SELECT NEXT", "SELECT SUIVANT"));
 
   switch (s_state) {
     case APP_STATE_SET_TIMER:
-      prv_format_time(s_timer_seconds, value_text, sizeof(value_text));
+      main_font = value_font;
       if (s_timer_seconds >= 3600U) {
         main_font = compact_value_font;
       }
       break;
     case APP_STATE_SET_DELAY:
-      snprintf(state_text, sizeof(state_text), "DÉLAI");
+      snprintf(state_text, sizeof(state_text), "%s",
+               prv_text("DELAY", "DÉLAI"));
+      snprintf(step_text, sizeof(step_text), "2/4");
       if (s_delay_seconds == 0U) {
-        snprintf(value_text, sizeof(value_text), "Aucun");
+        snprintf(value_text, sizeof(value_text), "%s",
+                 prv_text("NONE", "AUCUN"));
         main_font = compact_value_font;
       } else {
         snprintf(value_text, sizeof(value_text), "%u s", s_delay_seconds);
+        main_font = value_font;
       }
-      snprintf(info_text, sizeof(info_text), "Attente silencieuse");
-      snprintf(hint_bottom, sizeof(hint_bottom), "Select >   Back <");
+      snprintf(info_first, sizeof(info_first), "%s",
+               prv_text("QUIET START", "DÉPART SILENCIEUX"));
+      snprintf(info_second, sizeof(info_second), "%s",
+               prv_text("THEN 2 PULSES", "PUIS 2 PULSES"));
+      snprintf(first_action, sizeof(first_action), "%s",
+               prv_text("UP/DOWN SET", "HAUT/BAS RÉGLER"));
+      snprintf(second_action, sizeof(second_action), "%s",
+               prv_text("SELECT NEXT", "SELECT SUIVANT"));
       break;
     case APP_STATE_SET_HAPTICS:
-      snprintf(state_text, sizeof(state_text), "VIBRATIONS");
+      snprintf(state_text, sizeof(state_text), "%s",
+               prv_text("HAPTICS", "VIBRATIONS"));
+      snprintf(step_text, sizeof(step_text), "3/4");
       snprintf(value_text, sizeof(value_text), "%s",
-               s_haptics_enabled ? "Oui" : "Non");
+               s_haptics_enabled ? prv_text("YES", "OUI")
+                                  : prv_text("NO", "NON"));
       main_font = compact_value_font;
-      snprintf(info_text, sizeof(info_text), "Code décimal");
-      snprintf(hint_bottom, sizeof(hint_bottom), "Select >   Back <");
+      snprintf(info_first, sizeof(info_first), "%s",
+               prv_text("CYCLE NUMBER", "NUMÉRO DU CYCLE"));
+      snprintf(info_second, sizeof(info_second), "%s",
+               prv_text("DECIMAL CODE", "CODE DÉCIMAL"));
+      snprintf(first_action, sizeof(first_action), "%s",
+               prv_text("UP/DOWN YES/NO", "HAUT/BAS OUI/NON"));
+      snprintf(second_action, sizeof(second_action), "%s",
+               prv_text("SELECT NEXT", "SELECT SUIVANT"));
       break;
     case APP_STATE_READY:
-      snprintf(state_text, sizeof(state_text), "PRÊT");
-      prv_format_time(s_timer_seconds, value_text, sizeof(value_text));
+      snprintf(state_text, sizeof(state_text), "%s",
+               prv_text("READY", "PRÊT"));
+      snprintf(step_text, sizeof(step_text), "4/4");
       if (s_timer_seconds >= 3600U) {
+        prv_format_time(s_timer_seconds, value_text, sizeof(value_text));
         main_font = compact_value_font;
+      } else {
+        snprintf(value_text, sizeof(value_text), "%u s", s_timer_seconds);
+        main_font = value_font;
       }
-      snprintf(info_text, sizeof(info_text), "Toutes les %u s%s",
-               s_timer_seconds, s_delay_seconds ? " + délai" : "");
-      snprintf(hint_top, sizeof(hint_top), "Tenir Select : lancer");
-      snprintf(hint_bottom, sizeof(hint_bottom), "Back : modifier");
+      if (s_delay_seconds == 0U) {
+        snprintf(info_first, sizeof(info_first), "%s",
+                 prv_text("STARTS NOW", "DÉPART IMMÉDIAT"));
+      } else {
+        snprintf(info_first, sizeof(info_first), "%s %u s",
+                 prv_text("DELAY", "DÉLAI"), s_delay_seconds);
+      }
+      snprintf(info_second, sizeof(info_second), "%s %s",
+               prv_text("HAPTICS", "VIBRATIONS"),
+               s_haptics_enabled ? prv_text("YES", "OUI")
+                                  : prv_text("NO", "NON"));
+      snprintf(first_action, sizeof(first_action), "%s",
+               prv_text("HOLD SELECT", "TENIR SELECT"));
+      snprintf(second_action, sizeof(second_action), "%s",
+               prv_text("BACK EDIT", "BACK MODIFIER"));
       break;
     case APP_STATE_WAITING: {
       const WallClockTime now = prv_now();
@@ -644,61 +856,195 @@ static void prv_canvas_update_proc(Layer *layer, GContext *ctx) {
       const uint32_t remaining_ms = waited_ms < delay_ms
           ? delay_ms - waited_ms : 0U;
       const unsigned int remaining = (remaining_ms + 999U) / 1000U;
-      snprintf(state_text, sizeof(state_text), "DÉMARRAGE DANS");
+      snprintf(state_text, sizeof(state_text), "%s",
+               prv_text("STARTING", "DÉMARRAGE"));
+      step_text[0] = '\0';
       snprintf(value_text, sizeof(value_text), "%u", remaining);
-      snprintf(info_text, sizeof(info_text), "Puis 2 vibrations");
-      snprintf(hint_top, sizeof(hint_top), "Patientez…");
-      snprintf(hint_bottom, sizeof(hint_bottom), "Back : arrêter");
+      snprintf(info_first, sizeof(info_first), "%s",
+               prv_text("QUIET", "SILENCE"));
+      snprintf(info_second, sizeof(info_second), "%s",
+               prv_text("THEN 2 PULSES", "PUIS 2 PULSES"));
+      first_action[0] = '\0';
+      snprintf(second_action, sizeof(second_action), "%s",
+               prv_text("BACK STOP", "BACK ARRÊT"));
       break;
     }
     case APP_STATE_RUNNING:
     case APP_STATE_PAUSED: {
       snprintf(state_text, sizeof(state_text), "%s",
-               s_state == APP_STATE_PAUSED ? "PAUSE" : "ACTIF");
+               s_state == APP_STATE_PAUSED ? prv_text("PAUSED", "PAUSE")
+                                           : prv_text("RUNNING", "ACTIF"));
+      step_text[0] = '\0';
       prv_format_time(s_elapsed_seconds, value_text, sizeof(value_text));
       if (s_elapsed_seconds >= 3600U) {
         main_font = compact_value_font;
       }
-      snprintf(info_text, sizeof(info_text), "Cycle %llu · toutes les %u s",
-               (unsigned long long)s_cycle, s_timer_seconds);
-      snprintf(hint_top, sizeof(hint_top), "Select : %s",
-               s_state == APP_STATE_PAUSED ? "reprendre" : "pause");
-      snprintf(hint_bottom, sizeof(hint_bottom), "Back : arrêter");
+      snprintf(info_first, sizeof(info_first), "%s %llu",
+               prv_text("CYCLE", "CYCLE"),
+               (unsigned long long)s_cycle);
+      snprintf(info_second, sizeof(info_second), "%s %u s",
+               prv_text("EVERY", "TOUTES LES"), s_timer_seconds);
+      snprintf(first_action, sizeof(first_action),
+               s_state == APP_STATE_PAUSED
+                   ? prv_text("SELECT RESUME", "SELECT REPRENDRE")
+                   : prv_text("SELECT PAUSE", "SELECT PAUSE"));
+      snprintf(second_action, sizeof(second_action), "%s",
+               prv_text("BACK STOP", "BACK ARRÊT"));
+      band_background = PBL_IF_COLOR_ELSE(
+          s_state == APP_STATE_PAUSED ? GColorChromeYellow
+                                      : GColorJaegerGreen,
+          GColorBlack);
       break;
     }
     case APP_STATE_STOP_CONFIRM:
-      snprintf(state_text, sizeof(state_text), "CONFIRMATION");
-      snprintf(value_text, sizeof(value_text), "Stop ?");
+      snprintf(state_text, sizeof(state_text), "%s",
+               prv_text("STOP?", "ARRÊTER ?"));
+      step_text[0] = '\0';
+      snprintf(value_text, sizeof(value_text), "STOP ?");
       main_font = compact_value_font;
-      snprintf(info_text, sizeof(info_text), "Cycle %llu · %u s",
-               (unsigned long long)s_cycle, s_elapsed_seconds);
-      snprintf(hint_top, sizeof(hint_top), "Select : oui");
-      snprintf(hint_bottom, sizeof(hint_bottom), "Back : non");
+      snprintf(info_first, sizeof(info_first), "CYCLE %llu",
+               (unsigned long long)s_cycle);
+      prv_format_time(s_elapsed_seconds, info_second, sizeof(info_second));
+      snprintf(first_action, sizeof(first_action), "%s",
+               prv_text("SELECT YES", "SELECT OUI"));
+      snprintf(second_action, sizeof(second_action), "%s",
+               prv_text("BACK NO", "BACK NON"));
+      band_background = PBL_IF_COLOR_ELSE(GColorRed, GColorBlack);
+      band_foreground = PBL_IF_COLOR_ELSE(GColorBlack, GColorWhite);
       break;
   }
 
-  prv_draw_animation(ctx, bounds, main_y + main_height / 2 - 2);
-  prv_draw_text(ctx, "TICK EVERY", tiny_font,
-                GRect(margin, header_y, content_width, 18),
-                GTextAlignmentCenter, foreground);
-  prv_draw_text(ctx, state_text, bold_font,
-                GRect(margin, state_y, content_width, 24),
-                GTextAlignmentCenter, accent);
+  /* Round screens use the center as a dial and keep button labels short. */
+  if (round) {
+    switch (s_state) {
+      case APP_STATE_SET_TIMER:
+        snprintf(info_first, sizeof(info_first), "%s",
+                 prv_text("REPEATS FOREVER", "RÉPÈTE SANS FIN"));
+        snprintf(first_action, sizeof(first_action), "%s",
+                 prv_text("UP/DOWN", "HAUT/BAS"));
+        snprintf(second_action, sizeof(second_action), "%s",
+                 prv_text("NEXT", "SUIVANT"));
+#ifdef PBL_PLATFORM_GABBRO
+        main_font = strlen(value_text) <= 5U
+            ? fonts_get_system_font(FONT_KEY_LECO_60_BOLD_NUMBERS_AM_PM)
+            : compact_value_font;
+#endif
+        break;
+      case APP_STATE_SET_DELAY:
+        if (s_delay_seconds == 0U) {
+          main_font = round_word_font;
+        }
+        snprintf(info_first, sizeof(info_first), "%s",
+                 prv_text("QUIET · THEN 2", "SILENCE · PUIS 2"));
+        snprintf(first_action, sizeof(first_action), "%s",
+                 prv_text("UP/DOWN", "HAUT/BAS"));
+        snprintf(second_action, sizeof(second_action), "%s",
+                 prv_text("NEXT", "SUIVANT"));
+        break;
+      case APP_STATE_SET_HAPTICS:
+        main_font = round_word_font;
+        snprintf(state_text, sizeof(state_text), "%s",
+                 prv_text("HAPTIC", "VIBR."));
+        snprintf(info_first, sizeof(info_first), "%s",
+                 prv_text("COUNTS CYCLES", "COMPTE LES CYCLES"));
+        snprintf(first_action, sizeof(first_action), "%s",
+                 prv_text("UP/DOWN", "HAUT/BAS"));
+        snprintf(second_action, sizeof(second_action), "%s",
+                 prv_text("NEXT", "SUIVANT"));
+        break;
+      case APP_STATE_READY:
+        prv_format_time(s_timer_seconds, value_text, sizeof(value_text));
+#ifdef PBL_PLATFORM_GABBRO
+        main_font = strlen(value_text) <= 5U
+            ? fonts_get_system_font(FONT_KEY_LECO_60_BOLD_NUMBERS_AM_PM)
+            : compact_value_font;
+#endif
+        if (s_delay_seconds == 0U) {
+          snprintf(info_first, sizeof(info_first), "%s · %s %s",
+                   prv_text("NOW", "MAINT."), prv_text("HAPTIC", "VIB."),
+                   s_haptics_enabled ? prv_text("YES", "OUI")
+                                      : prv_text("NO", "NON"));
+        } else {
+          snprintf(info_first, sizeof(info_first), "%s %u · %s %s",
+                   prv_text("DELAY", "DÉLAI"), s_delay_seconds,
+                   prv_text("VIBE", "VIB."),
+                   s_haptics_enabled ? prv_text("YES", "OUI")
+                                      : prv_text("NO", "NON"));
+        }
+        snprintf(first_action, sizeof(first_action), "%s",
+                 prv_text("HOLD START", "TENIR"));
+        snprintf(second_action, sizeof(second_action), "%s",
+                 prv_text("EDIT", "MODIF."));
+        break;
+      case APP_STATE_WAITING:
+        snprintf(info_first, sizeof(info_first), "%s",
+                 prv_text("SECONDS · QUIET", "SECONDES · SILENCE"));
+        first_action[0] = '\0';
+        snprintf(second_action, sizeof(second_action), "%s",
+                 prv_text("STOP", "ARRÊT"));
+#ifdef PBL_PLATFORM_GABBRO
+        main_font = fonts_get_system_font(FONT_KEY_LECO_60_BOLD_NUMBERS_AM_PM);
+#endif
+        break;
+      case APP_STATE_RUNNING:
+      case APP_STATE_PAUSED:
+        prv_format_cycle(s_cycle, value_text, sizeof(value_text));
+        prv_format_time(s_elapsed_seconds, elapsed_text, sizeof(elapsed_text));
+        prv_format_interval_short(s_timer_seconds, interval_text,
+                                  sizeof(interval_text));
+        snprintf(info_first, sizeof(info_first), "%s · %s %s",
+                 elapsed_text, prv_text("EVERY", "CHAQUE"), interval_text);
+        snprintf(first_action, sizeof(first_action), "%s",
+                 s_state == APP_STATE_PAUSED
+                     ? prv_text("RESUME", "REPRENDRE")
+                     : prv_text("PAUSE", "PAUSE"));
+        snprintf(second_action, sizeof(second_action), "%s",
+                 prv_text("STOP", "ARRÊT"));
+#ifdef PBL_PLATFORM_GABBRO
+        main_font = strlen(value_text) <= 4U
+            ? fonts_get_system_font(FONT_KEY_LECO_60_BOLD_NUMBERS_AM_PM)
+            : value_font;
+#else
+        if (strlen(value_text) > 4U) {
+          main_font = compact_value_font;
+        }
+#endif
+        break;
+      case APP_STATE_STOP_CONFIRM:
+        main_font = round_word_font;
+        prv_format_time(s_elapsed_seconds, elapsed_text, sizeof(elapsed_text));
+        prv_format_cycle(s_cycle, cycle_text, sizeof(cycle_text));
+        snprintf(info_first, sizeof(info_first), "%s · %s", cycle_text,
+                 elapsed_text);
+        snprintf(first_action, sizeof(first_action), "%s",
+                 prv_text("YES", "OUI"));
+        snprintf(second_action, sizeof(second_action), "%s",
+                 prv_text("NO", "NON"));
+        break;
+    }
+    info_second[0] = '\0';
+  }
+
+  prv_draw_round_dial(ctx, bounds, bounds.size.h / 2, band_background);
+  prv_draw_animation(ctx, bounds,
+                     round ? bounds.size.h / 2
+                           : main_y + main_height / 2 - 2);
+  prv_draw_state_band(ctx,
+                      GRect(band_margin, band_y,
+                            bounds.size.w - band_margin * 2, band_height),
+                      state_text, step_text, band_background, band_foreground,
+                      label_font);
   prv_draw_text(ctx, value_text, main_font,
                 GRect(margin, main_y, content_width, main_height),
                 GTextAlignmentCenter, foreground);
-  prv_draw_progress(ctx, bounds, margin, progress_y);
-  prv_draw_text(ctx, info_text, tiny_font,
-                GRect(margin, info_y, content_width, 20),
-                GTextAlignmentCenter, muted);
-  prv_draw_text(ctx, hint_top, hint_top_font,
-                GRect(hint_top_margin, hint_y,
-                      bounds.size.w - hint_top_margin * 2, 19),
+  prv_draw_text(ctx, info_first, info_font,
+                GRect(margin, info_first_y, content_width, info_height),
                 GTextAlignmentCenter, foreground);
-  prv_draw_text(ctx, hint_bottom, tiny_font,
-                GRect(hint_bottom_margin, hint_y + 20,
-                      bounds.size.w - hint_bottom_margin * 2, 18),
+  prv_draw_text(ctx, info_second, info_font,
+                GRect(margin, info_second_y, content_width, info_height),
                 GTextAlignmentCenter, foreground);
+  prv_draw_actions(ctx, bounds, footer_y, first_action, second_action,
+                   action_font);
 }
 
 /* Select advances setup, controls timing, or confirms a pending stop. */
@@ -844,6 +1190,50 @@ static void prv_tick_handler(struct tm *tick_time, TimeUnits units_changed) {
   prv_reconcile_runtime();
 }
 
+/* Applies validated settings received from the mobile configuration page. */
+static void prv_inbox_received(DictionaryIterator *iterator, void *context) {
+  Tuple *language_tuple = dict_find(iterator, MESSAGE_KEY_LANGUAGE);
+  if (!language_tuple) {
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "AppMessage received without language");
+    return;
+  }
+
+  int32_t language_value;
+  if (language_tuple->type == TUPLE_INT) {
+    language_value = language_tuple->value->int32;
+  } else if (language_tuple->type == TUPLE_UINT) {
+    const uint32_t unsigned_value = language_tuple->value->uint32;
+    if (unsigned_value > LANGUAGE_FRENCH) {
+      APP_LOG(APP_LOG_LEVEL_ERROR, "Invalid unsigned AppMessage language: %lu",
+              (unsigned long)unsigned_value);
+      return;
+    }
+    language_value = (int32_t)unsigned_value;
+  } else {
+    APP_LOG(APP_LOG_LEVEL_ERROR, "Invalid AppMessage language tuple type: %d",
+            (int)language_tuple->type);
+    return;
+  }
+
+  if (language_value != LANGUAGE_ENGLISH &&
+      language_value != LANGUAGE_FRENCH) {
+    APP_LOG(APP_LOG_LEVEL_ERROR, "Invalid AppMessage language: %ld",
+            (long)language_value);
+    return;
+  }
+
+  s_language = (Language)language_value;
+  prv_persist_int_checked(PERSIST_KEY_LANGUAGE, (int)s_language, "language");
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "AppMessage language applied: %ld",
+          (long)language_value);
+  prv_mark_dirty();
+}
+
+/* Reports transport failures while leaving the current language untouched. */
+static void prv_inbox_dropped(AppMessageResult reason, void *context) {
+  APP_LOG(APP_LOG_LEVEL_ERROR, "AppMessage inbox dropped: %d", (int)reason);
+}
+
 /* Allocates the sole drawing layer using the platform's current bounds. */
 static void prv_window_load(Window *window) {
   Layer *root_layer = window_get_root_layer(window);
@@ -885,13 +1275,22 @@ static bool prv_init(void) {
     APP_LOG(APP_LOG_LEVEL_ERROR, "Failed to allocate main window");
     return false;
   }
-  window_set_background_color(
-      s_window, PBL_IF_COLOR_ELSE(GColorPictonBlue, GColorWhite));
+  window_set_background_color(s_window, GColorWhite);
   window_set_click_config_provider(s_window, prv_click_config_provider);
   window_set_window_handlers(s_window, (WindowHandlers) {
     .load = prv_window_load,
     .unload = prv_window_unload,
   });
+
+  app_message_register_inbox_received(prv_inbox_received);
+  app_message_register_inbox_dropped(prv_inbox_dropped);
+  const AppMessageResult app_message_result = app_message_open(64, 64);
+  if (app_message_result != APP_MSG_OK) {
+    APP_LOG(APP_LOG_LEVEL_ERROR, "Failed to open AppMessage: %d",
+            (int)app_message_result);
+  } else {
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "AppMessage opened");
+  }
 
   tick_timer_service_subscribe(SECOND_UNIT, prv_tick_handler);
   window_stack_push(s_window, true);
@@ -903,6 +1302,7 @@ static bool prv_init(void) {
 static void prv_deinit(void) {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Deinitializing Tick Every");
   tick_timer_service_unsubscribe();
+  app_message_deregister_callbacks();
   vibes_cancel();
   prv_cancel_runtime_timer();
   prv_cancel_animation();

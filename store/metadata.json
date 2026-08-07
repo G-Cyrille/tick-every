@@ -1,0 +1,32 @@
+{
+  "name": "Tick Every",
+  "package": "tick-every",
+  "version": "1.0.0",
+  "uuid": "0987ccfa-3f0c-4225-bea5-140db3a87514",
+  "type": "watchapp",
+  "category": "tools",
+  "repositoryName": "tick-every",
+  "sourceUrl": "https://github.com/G-Cyrille/tick-every",
+  "developerName": "G-Cyrille",
+  "supportEmail": "oiawo.cir@gmail.com",
+  "privacyPolicyUrl": "https://s3.grossholtz.net/public/tick-every/2026/08/8c24be09-b7d3-4196-9fdc-d8825bff1c3c-privacy-policy.html",
+  "tutorialUrl": "https://s3.grossholtz.net/public/tick-every/2026/08/36a81484-bbc5-4fcc-965d-1c47f68a1bac-tutorial.html",
+  "releaseUrl": "https://s3.grossholtz.net/public/tick-every/2026/08/344ea515-8898-400c-a687-dfb7097a4be3-tick-every-v1.0.0.pbw",
+  "platforms": [
+    "aplite",
+    "basalt",
+    "chalk",
+    "diorite",
+    "emery",
+    "flint",
+    "gabbro"
+  ],
+  "assets": {
+    "iconSmall": "store/assets/icon-80.png",
+    "iconLarge": "store/assets/icon-144.png",
+    "banner": "store/assets/banner-720x320.png",
+    "screenshots": "store/screenshots"
+  },
+  "configurationUrl": "https://s3.grossholtz.net/public/tick-every/config/2026/08/ea2e99d6-723f-468a-90a2-a1d2a8a5400a-config.html",
+  "notes": "The current Pebble Tool 5.0.39 publishes immediately."
+}
