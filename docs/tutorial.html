@@ -1,0 +1,596 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#075985">
+  <title>Tick Every — Guide d’utilisation</title>
+  <style>
+    :root {
+      --ink: #102a43;
+      --muted: #536878;
+      --paper: #fffdf8;
+      --sky: #dff5ff;
+      --blue: #075985;
+      --orange: #dd5828;
+      --green: #237b68;
+      --line: #b8d8e5;
+      --white: #fff;
+      --shadow: 0 16px 42px rgb(16 42 67 / 13%);
+      --radius: 1.2rem;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 5% 2%, rgb(255 159 87 / 22%), transparent 20rem),
+        linear-gradient(180deg, #e8f8ff 0, var(--paper) 34rem);
+      font: 1rem/1.62 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    img { display: block; max-width: 100%; height: auto; }
+    a { color: var(--blue); text-underline-offset: .18em; }
+    a:focus-visible, summary:focus-visible {
+      outline: .2rem solid #ff9a52;
+      outline-offset: .2rem;
+      border-radius: .25rem;
+    }
+    .wrap { width: min(72rem, calc(100% - 2rem)); margin-inline: auto; }
+    .skip {
+      position: fixed;
+      z-index: 30;
+      top: .75rem;
+      left: .75rem;
+      padding: .65rem .9rem;
+      border: 2px solid var(--blue);
+      border-radius: .5rem;
+      background: var(--white);
+      transform: translateY(-180%);
+    }
+    .skip:focus { transform: none; }
+
+    header { padding: 4.5rem 0 3rem; }
+    .hero { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(15rem, .65fr); gap: 2.4rem; align-items: center; }
+    .eyebrow { margin: 0 0 .4rem; color: var(--orange); font-weight: 850; letter-spacing: .13em; text-transform: uppercase; }
+    h1, h2, h3 { line-height: 1.12; text-wrap: balance; }
+    h1 { margin: 0; font-size: clamp(2.8rem, 7vw, 5.7rem); letter-spacing: -.055em; }
+    h2 { margin: 0 0 1rem; font-size: clamp(1.85rem, 4vw, 2.8rem); letter-spacing: -.025em; }
+    h3 { margin: 0 0 .55rem; font-size: 1.23rem; }
+    p { margin: .65rem 0; }
+    .lede { max-width: 44rem; margin-top: 1.1rem; color: var(--muted); font-size: 1.17rem; }
+    .promise {
+      padding: 1.25rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgb(255 255 255 / 82%);
+      box-shadow: var(--shadow);
+    }
+    .promise strong { display: block; margin-bottom: .25rem; color: var(--green); font-size: 1.08rem; }
+
+    nav {
+      position: sticky;
+      z-index: 20;
+      top: 0;
+      border-block: 1px solid var(--line);
+      background: rgb(255 253 248 / 93%);
+      backdrop-filter: blur(12px);
+    }
+    nav ul { display: flex; gap: .35rem; margin: 0; padding: .55rem 0; list-style: none; overflow-x: auto; }
+    nav a { display: block; padding: .5rem .75rem; border-radius: 999px; font-weight: 750; text-decoration: none; white-space: nowrap; }
+    nav a:hover { background: var(--sky); }
+
+    main section { padding: 4rem 0; scroll-margin-top: 4.5rem; }
+    main section + section { border-top: 1px solid var(--line); }
+    .intro { max-width: 48rem; color: var(--muted); }
+    .callout {
+      margin: 1.5rem 0;
+      padding: 1rem 1.2rem;
+      border-left: .35rem solid var(--orange);
+      border-radius: .25rem .85rem .85rem .25rem;
+      background: #fff2e5;
+    }
+    .callout p { margin: 0; }
+    .formula {
+      display: inline-block;
+      padding: .16rem .5rem;
+      border: 1px solid var(--line);
+      border-radius: .4rem;
+      background: var(--white);
+      font: 800 1em/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    .journey {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: .55rem;
+      margin: 1.8rem 0 0;
+      padding: 0;
+      list-style: none;
+      counter-reset: step;
+    }
+    .journey li {
+      position: relative;
+      min-height: 7.4rem;
+      padding: 1rem .75rem;
+      border: 1px solid var(--line);
+      border-radius: 1rem;
+      background: var(--white);
+      box-shadow: 0 5px 18px rgb(16 42 67 / 7%);
+    }
+    .journey li::before {
+      counter-increment: step;
+      content: counter(step);
+      display: grid;
+      place-items: center;
+      width: 1.8rem;
+      height: 1.8rem;
+      margin-bottom: .7rem;
+      border-radius: 50%;
+      color: var(--white);
+      background: var(--green);
+      font-weight: 850;
+    }
+    .journey li:not(:last-child)::after {
+      content: "→";
+      position: absolute;
+      z-index: 1;
+      top: 1.25rem;
+      right: -.58rem;
+      color: var(--orange);
+      font-weight: 900;
+    }
+    .journey strong, .journey small { display: block; }
+    .journey small { margin-top: .28rem; color: var(--muted); line-height: 1.35; }
+
+    .button-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: 1.5rem; }
+    .card { padding: 1.05rem; border: 1px solid var(--line); border-radius: 1rem; background: var(--white); }
+    kbd {
+      display: inline-block;
+      min-width: 2.4rem;
+      margin-bottom: .55rem;
+      padding: .25rem .55rem;
+      border: 0;
+      border-radius: .45rem;
+      color: var(--white);
+      background: var(--blue);
+      box-shadow: 0 .18rem 0 #043a58;
+      font: 750 .9rem/1.4 inherit;
+    }
+
+    .steps { display: grid; gap: 3rem; margin-top: 2rem; }
+    .step { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2rem; align-items: center; }
+    .step:nth-child(even) { grid-template-columns: auto minmax(0, 1fr); }
+    .step:nth-child(even) .step-copy { order: 2; }
+    .step-num {
+      display: inline-grid;
+      place-items: center;
+      width: 2.25rem;
+      height: 2.25rem;
+      margin-bottom: .7rem;
+      border-radius: 50%;
+      color: var(--white);
+      background: var(--orange);
+      font-weight: 850;
+    }
+    .step-copy { max-width: 46rem; }
+    figure { margin: 0; }
+    .watch {
+      display: inline-block;
+      padding: .65rem;
+      border: .38rem solid #274c68;
+      border-radius: 1.15rem;
+      background: #102a43;
+      box-shadow: var(--shadow);
+    }
+    .watch.round { border-radius: 50%; }
+    .watch img {
+      width: 288px;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+    .watch.round img { width: 360px; border-radius: 50%; }
+    figcaption { max-width: 20rem; margin-top: .6rem; color: var(--muted); font-size: .9rem; }
+
+    .timeline {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+      margin: 2rem 0;
+      padding: 0;
+      list-style: none;
+    }
+    .timeline li {
+      position: relative;
+      padding: 2.2rem .7rem .8rem;
+      border-top: .35rem solid var(--blue);
+      text-align: center;
+    }
+    .timeline li::before {
+      content: "";
+      position: absolute;
+      top: -.67rem;
+      left: calc(50% - .5rem);
+      width: 1rem;
+      height: 1rem;
+      border: .18rem solid var(--white);
+      border-radius: 50%;
+      background: var(--orange);
+      box-shadow: 0 0 0 .12rem var(--orange);
+    }
+    .timeline time { display: block; color: var(--blue); font-size: 1.25rem; font-weight: 900; }
+    .timeline strong { display: block; }
+    .timeline small { color: var(--muted); }
+
+    .sequence {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+    .sequence figure, .gallery figure {
+      display: grid;
+      justify-items: center;
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--white);
+    }
+    .sequence .watch img, .gallery .watch img { width: 144px; }
+    .gallery .watch.round img { width: 180px; }
+
+    .haptic-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1.5rem 0; }
+    .haptic { padding: 1.1rem; border: 1px solid var(--line); border-radius: 1rem; background: var(--white); }
+    .pulse {
+      display: inline-block;
+      width: .72rem;
+      height: .72rem;
+      margin: .17rem;
+      border-radius: 999px;
+      background: var(--orange);
+      vertical-align: middle;
+    }
+    .pulse.long { width: 1.8rem; background: var(--blue); }
+    .legend { color: var(--muted); font-size: .9rem; }
+
+    .gallery { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.2rem; margin-top: 1.5rem; }
+    .quick { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+    details { margin: .8rem 0; padding: .9rem 1rem; border: 1px solid var(--line); border-radius: .8rem; background: var(--white); }
+    summary { cursor: pointer; color: var(--blue); font-weight: 800; }
+    details p { margin: .7rem 0 0; }
+    footer { padding: 2.5rem 0 4rem; border-top: 1px solid var(--line); color: var(--muted); }
+
+    @media (max-width: 64rem) {
+      .journey { grid-template-columns: repeat(4, 1fr); }
+      .journey li::after { display: none; }
+      .step, .step:nth-child(even) { grid-template-columns: 1fr; }
+      .step:nth-child(even) .step-copy { order: initial; }
+      .step figure { justify-self: center; }
+      .sequence { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 43rem) {
+      body { line-height: 1.55; }
+      .wrap { width: min(100% - 1.2rem, 72rem); }
+      header { padding: 2.7rem 0 2.2rem; }
+      .hero, .button-grid, .haptic-grid, .gallery, .quick { grid-template-columns: 1fr; }
+      .journey, .sequence { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      main section { padding: 3rem 0; }
+      .watch img { width: 288px; max-width: calc(100vw - 3rem); }
+      .watch.round img { width: 180px; }
+      .timeline { grid-template-columns: 1fr; gap: .25rem; }
+      .timeline li { padding: .6rem .8rem .6rem 2rem; border-top: 0; border-left: .35rem solid var(--blue); text-align: left; }
+      .timeline li::before { top: calc(50% - .5rem); left: -.67rem; }
+    }
+    @media (max-width: 25rem) {
+      .journey, .sequence { grid-template-columns: 1fr; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation: none !important;
+        transition: none !important;
+      }
+    }
+    @media print {
+      :root { --ink: #000; --muted: #333; --line: #999; }
+      @page { margin: 1.2cm; }
+      body { background: var(--white); font-size: 10.5pt; }
+      .wrap { width: 100%; }
+      .skip, nav { display: none; }
+      header, main section, footer { padding: 1.2rem 0; }
+      h1 { font-size: 32pt; }
+      h2 { font-size: 21pt; }
+      .promise, .journey li, .card, .haptic, .sequence figure, .gallery figure, details { box-shadow: none; break-inside: avoid; }
+      .step, .step:nth-child(even) { grid-template-columns: 1fr auto; gap: 1rem; break-inside: avoid; }
+      .step:nth-child(even) .step-copy { order: initial; }
+      .watch img { width: 144px; }
+      .watch.round img { width: 180px; }
+      .sequence { grid-template-columns: repeat(4, 1fr); }
+      .gallery { grid-template-columns: repeat(3, 1fr); }
+      details:not([open]) > :not(summary) { display: block; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#contenu">Aller au contenu</a>
+
+  <header>
+    <div class="wrap hero">
+      <div>
+        <p class="eyebrow">Guide d’utilisation</p>
+        <h1>Tick Every</h1>
+        <p class="lede">Un métronome haptique pour Pebble : choisissez un intervalle, lancez, puis laissez la montre numéroter les cycles au poignet jusqu’à ce que vous décidiez d’arrêter.</p>
+      </div>
+      <aside class="promise" aria-label="Principe essentiel">
+        <strong>Timer = intervalle entre deux cycles.</strong>
+        Réglez 5 s et un nouveau cycle arrive toutes les 5 secondes, sans nombre de cycles prédéfini.
+      </aside>
+    </div>
+  </header>
+
+  <nav aria-label="Sommaire">
+    <div class="wrap">
+      <ul>
+        <li><a href="#principe">Principe</a></li>
+        <li><a href="#boutons">Boutons</a></li>
+        <li><a href="#regler">Régler</a></li>
+        <li><a href="#exemple">Exemple D=10/X=5</a></li>
+        <li><a href="#haptique">Code haptique</a></li>
+        <li><a href="#controle">Contrôler</a></li>
+        <li><a href="#aide">Aide</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main id="contenu">
+    <section id="principe">
+      <div class="wrap">
+        <h2>Le principe en une minute</h2>
+        <p class="intro">Le parcours est linéaire. Vous choisissez l’intervalle <strong>X</strong>, un délai de départ <strong>D</strong> et l’activation du code haptique. Après le lancement, les cycles continuent jusqu’à un arrêt manuel.</p>
+        <ol class="journey" aria-label="Parcours de Tick Every">
+          <li><strong>Timer X</strong><small>Intervalle répétitif</small></li>
+          <li><strong>Délai D</strong><small>Attente facultative</small></li>
+          <li><strong>Vibrations</strong><small>Code des cycles</small></li>
+          <li><strong>Prêt</strong><small>Maintenir Select 0,7 s</small></li>
+          <li><strong>Attente</strong><small>Silence jusqu’à D</small></li>
+          <li><strong>Actif</strong><small>Cycles D + nX</small></li>
+          <li><strong>Arrêt</strong><small>Uniquement sur demande</small></li>
+        </ol>
+        <div class="callout"><p><strong>Formule :</strong> le démarrage effectif a lieu à <span class="formula">D</span>, puis le cycle <span class="formula">n</span> à <span class="formula">D + nX</span>. Le timer ne se termine pas tout seul.</p></div>
+      </div>
+    </section>
+
+    <section id="boutons">
+      <div class="wrap">
+        <h2>Les quatre boutons</h2>
+        <div class="button-grid">
+          <article class="card"><kbd>Up</kbd><h3>Augmenter</h3><p>Valeur suivante dans un réglage.</p></article>
+          <article class="card"><kbd>Select</kbd><h3>Valider</h3><p>Étape suivante, pause, reprise ou confirmation.</p></article>
+          <article class="card"><kbd>Down</kbd><h3>Diminuer</h3><p>Valeur précédente dans un réglage.</p></article>
+          <article class="card"><kbd>Back</kbd><h3>Revenir ou arrêter</h3><p>Étape précédente ; pendant l’exécution, ouvre la confirmation d’arrêt.</p></article>
+        </div>
+        <div class="callout"><p>Sur l’écran <strong>Prêt</strong>, maintenez <strong>Select pendant au moins 0,7 seconde</strong>. Un clic court anime le halo mais ne lance rien.</p></div>
+      </div>
+    </section>
+
+    <section id="regler">
+      <div class="wrap">
+        <h2>Régler et lancer</h2>
+        <div class="steps">
+          <article class="step">
+            <div class="step-copy">
+              <span class="step-num">1</span>
+              <h3>Choisissez l’intervalle X</h3>
+              <p>Up et Down règlent le temps séparant deux cycles, de <strong>1 seconde à 1 heure</strong>. Select valide.</p>
+              <p>Exemple : <strong>Timer 0:05</strong> signifie « un cycle toutes les 5 secondes ».</p>
+            </div>
+            <figure>
+              <span class="watch"><img src="data:image/png;base64,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" width="144" height="168" alt="Écran Timer réglé sur 5 secondes et indiquant Intervalle répétitif"></span>
+              <figcaption>X = 5 s : un cycle toutes les 5 s.</figcaption>
+            </figure>
+          </article>
+
+          <article class="step">
+            <div class="step-copy">
+              <span class="step-num">2</span>
+              <h3>Choisissez le délai D</h3>
+              <p>Les choix sont <strong>aucun, 5, 10, 15, 30 ou 60 secondes</strong>. Le délai laisse le temps de se placer avant que la répétition commence.</p>
+              <p>L’attente reste silencieuse. À l’instant D, une <strong>double mini-vibration</strong> annonce le démarrage effectif.</p>
+            </div>
+            <figure>
+              <span class="watch"><img src="data:image/png;base64,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" width="144" height="168" alt="Écran Délai réglé sur 10 secondes et indiquant Attente silencieuse"></span>
+              <figcaption>D = 10 s : silence pendant les dix premières secondes.</figcaption>
+            </figure>
+          </article>
+
+          <article class="step">
+            <div class="step-copy">
+              <span class="step-num">3</span>
+              <h3>Activez ou coupez le code haptique</h3>
+              <p><strong>Oui</strong> joue le numéro de chaque cycle en vibrations. <strong>Non</strong> coupe ces motifs numérotés.</p>
+              <p>La double mini-vibration à l’instant D reste active dans les deux cas.</p>
+            </div>
+            <figure>
+              <span class="watch"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJAAAACoCAYAAAAPb2d4AAAFfUlEQVR4nO2ZS64cNwxFvdBsIEN7EdlEpoYHeWMvJ4vICmI8Ay9oK/qQuqomWX0EHKC6WpQo8bT69+n373//C7DLp+gEoDYIBBIIBBIIBBIIBBIIBBKlBOq1j/ujfu392ePeHJbYWYySSwVKCWQtpuW5UcGs93fGsuZZCQRajL0zp1WSj8dV5Xnn9gJ5C7YTj0DFUARaFeuxjebtzd+LaZtlLdV4OYGsfTzxFjkQKBEegUbP7RZ0djLN7iNQIioK5I2twu0E+njc+9xhLego3huDQAALEAgkEAgkEAgkEAgkEAgkEAgkEAgkEAgkEAgkEAgkUgj0z19//GR2b/S4pTfGrE+v7+y5Xj/r3N41W8aJ5nYCeftcIZA3N2WcaMoL5IkZ3VsJZI3dyU1dYzQpBGo35pQcVQQarTvjiXM7gTxvLZZ7s4I9W6AKEt1OoNHmW/pFCDSSqYpE5QVSJasgUGaJ0gi02iS1SBYBrEW8MreZIBklenmBrG9zEQJZxommvECzwp96K9wV6FRu1hMSgQ4ItCr4MwQa5efNzTJONKkEgnogEEggEEggEEggEEggEEggEEggEEggEEggEEggEEggEEggEEggEEggEEgg0BMZtei8FG4r0Kxlyyl6rxRuJ5CnZcktes8QyClOVAGj50egC+R5ZhERKCEnW/RaKlJaoB0hPDHWcU/3q8RtBToRh0AvKtCpWAS6sUAnirEaA4EQCIEQCIEyg0AIhEAIhEDHBLIWxBKLQDcWSJHIGodALyzQqDCeGEs/z/yePKtQWiCLEJ52emwEKsKJdsW4CFSIk4W+atyd+bNzG4F2Cn5iTI8YCFSIE+KsxvOKgUAADQgEEggEEggEEggEEggEEggEEggEEggEEggEEggEEggEEggEEggEEggEEggEEggEEggEEgi0yW9/fvkf0TlFUFagz9++/lK898fPiu/J45VIzT8LJQVqN99bBCV+Jo9Voo/5397e/qOqRCUFUk8AJf6EQK08jxJF7y0CIRACIVAdSgrEZ6A8lBSoJwHfwhCoFIo8dwKBQAKBQAKBQAKBQAKBQAKBQAKBHLz/4BedQzbSC/T4a+0zC97GesY6JVoFYVMLpBRRLUCG4mXIYUVpgUYn0+jUspxk3thR3/b6sZ91fAQ6LNCqSDvXV4zZXo8k2s0zEwh0aExlHEtsVl5KoNUHcm/sSYE842eilEBXnDre8Wf5nc4TgZIK9OzPQAgULJHnG9AsZvb2tRu7+vbEWxjABAQCCQQCCQQCCQQCCQQCCQQCCQQCCQQCCQQCCQQCCQQCCQQCCQQCidsL9N6ic6iQ0y5hArWbqGzqLPbxubZlWPepvlHcWqDVHBkL1Aofnc+KtAL1Tone5s5OFK9As3Gsp1zvfu8UtMzh2ZMo2VIKpFzvCnRynlHBr7qOkidcoLatiuMp7Ojeaj6LeJ41KmtRpH4JgVaPd17BnnuWOZVCzcYfPTcTbrUnCHTgelcgS1G8xVoJ67l/KicE+j7/bOHZ7BOinpivtyY1p5cW6HFD2816lGi0+bOC9sadzTkq7o5AiiiW2JcS6EqiN1XJt1rutxSoIqtTLisIBBIIBBIIBBIIBBIIBBIIBBIIBBIIBBIIBBLhAs3+mxr1V+a6eg3qHNV+jQ4VaOePwawCZc/xKlILZPn3efSqb++vToiTRd/NsY29+gVVXqDZBow28tT1yWJYJciS760EGm3EFRt/1Su6bZaxVzlWkCeNQL0NGRWlvV712dl0b3F6uY/WYsmxijzhAs023iKBVxTLxu8Ux7oOTqAgga64PlmUZ6wjq0Thb2GPbfTcqlie2NUrX13DLBdLPh6BMkgULhDUBoFAAoFAAoFAAoFAAoFA4gdP1KVq7so71wAAAABJRU5ErkJggg==" width="144" height="168" alt="Écran Vibrations réglé sur Oui et indiquant Code décimal"></span>
+              <figcaption>Le choix concerne les cycles, pas le signal de départ.</figcaption>
+            </figure>
+          </article>
+
+          <article class="step">
+            <div class="step-copy">
+              <span class="step-num">4</span>
+              <h3>Vérifiez puis lancez</h3>
+              <p>L’écran Prêt résume X, D et le choix haptique. Maintenez Select 0,7 s. Back revient au réglage précédent.</p>
+              <p>Ces trois réglages sont sauvegardés sur la montre pour le prochain lancement.</p>
+            </div>
+            <figure>
+              <span class="watch"><img src="data:image/png;base64,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" width="144" height="168" alt="Écran Prêt montrant un timer de 5 secondes, un délai de 10 secondes et les vibrations actives"></span>
+              <figcaption>Résumé : toutes les 5 s, après 10 s d’attente.</figcaption>
+            </figure>
+          </article>
+
+          <article class="step">
+            <div class="step-copy">
+              <span class="step-num">5</span>
+              <h3>Laissez passer l’attente</h3>
+              <p>Le compte à rebours ne produit ni cycle ni vibration numérotée. À zéro, deux mini-vibrations signalent le départ, puis le compteur actif part de 0.</p>
+            </div>
+            <figure>
+              <span class="watch"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJAAAACoCAYAAAAPb2d4AAAFVElEQVR4nO2dTXKcMBBGfdBcIMvkELlEtqks4rWPk0PkBElNypQx1k93fwLU8Kh65QHUUqN+CFyzmKfPL7//AkR5OjsByA0CgQQCgQQCgQQCgQQCgUQqgUrbcrzWbnu8tV8awxLbilFyyUAqgazFtJyrFcx6PNKXNc9MIFCn78iYVkmW/azyPLi8QN6CReIRKBmKQL1irbfauKXxSzHbzXIt2bidQNY2nniLHAg0ER6BaueiBW2tTK3jCDQRGQXyxmbhcgIt+6X3DmtBa/HeGAQC6IBAIIFAIIFAIIFAIIFAIIFAILG7QH9+ffvP2RcK+7CrQMhzfXYTCHnuAe9AIOEWaFlZtnja1OJGnYvmZR2r1ld0rJG5tXLx5H+4QDVBzhbIkteRYynzGp0jZR52E6h1zDtZveOj7jzr3bnXWOq8jhbIMhYCHSRQpM3eAi3nW/Psrf+hAtUSjQjUmpDRAkXG6hUyIpySm6ddWoEiF2ydOIugo2S1jnWkQL0bcpREpz7CjhDI22a0QCPndbRAIyQ6XSBrvGfVUPP0jhWZA1Ug7zxY6hGRKIVAtZUjKqG3QCPlHDGvkXnw5r+7QJaLiBZ7tAx7tVHmQJnXI/I/XCBPG+tkzirQ9ho9RRoxr6Pzj8oTEghgDQKBBAKBBAKBBAKBBAKBBAKBBAKBBAKBBAKBBAKBBAKBBAKBBAKBBAKBBAKBBAKBBAKBBAKBBAKBxK0F2mM7+5oQCIFSgUAIhEAIhEAIlBQEQiAEOhLkeQ8COUGg9yCQA+T5CAI5QJ6PIJARVp8yCGQAeeogkAEEqoNAHZCnDQJ1QKA2CNQAefogUAME6oNAFZDHBgJVQCAbCFQAeewg0IbednZ+s4FAG5DHBwKtQB4/CLQCgfwg0CvIEwOBXkGgGAj0gjwKCPSCQAq3Fwh5NG4vEGggEEggEEggEEggEEggEEgg0El8+v71A2fnFCGtQF9+/ng3+Y/9LPElebJKlFKgbfG8RTwzviVPRolSCqRO/pnxCDQBCDQPCIRA9xOId6B5SClQqYj8F4ZAt+IK8jxAIJBAIJBAIJBAIJBAIJBAIJBAIJA4TaDn5+d3WGOi40RzVMZu5a72NwunCrT3hO4pwNHxszKlQJbPy36rMBaBPHmUxlv2S21bsZZrWfftvXYEEsSyjDcyj6j8nr6Va7+sQL272lOEiDzb8yNWRUt8pO9Z36GmWYEiAnnkOFIg6yNrxDgIJAoUOb6nQKMfYaOu8ZYCRd8vIpPbu8NnEoh3IINAvZfHkmC1fiz/sVgE6r2vtdpaHmlWySzXfnmB4BogEEggEEggEEggEEggEEggEEggEEggEEggEEggEEggEEggEEggEEggEEikFCjys0zbdsrPOfFTUG+kFchb0JFFR6A3LinQdmUqrVa9mHWb9bnaytc6dmXhLieQ5bMnZi2Ot6/WsauQViDL3T1CIKWvq8vzIK1AvfNbuXpF78X0+qoJjUATEll1PKuG0pc1z6uAQOJnTztv2wxcTqDlfOlxZHkMWYttjW+Ni0BwexAIJBAIJBAIJBAIJBAIJBAIJBAIJBAIJBAIJBDoALJ+TWFhaoG2W8YiLuNe4XuvEtMLNEqCmYo2Uy4qqQWqrUyeb9athW31WftbiqutqJb+ZyStQKM+WwRq9dPbt4xv7X9GpheodsdaClBqoxbEKsIogc6uQXqBevutu77UVsmlN1Yrv16c51pmIq1A3rtWWYEiK4klF2+7Gbm0QFHJ9hDIGscKNFig0tJeOl86bimSRaDaWJaVxJOfpb/ZmFogmB8EAgkEAgkEAgkEAgkEAol/niUjV/zDqL0AAAAASUVORK5CYII=" width="144" height="168" alt="Compte à rebours silencieux affichant 7 secondes avant le démarrage"></span>
+              <figcaption>Back permet déjà de demander l’arrêt.</figcaption>
+            </figure>
+          </article>
+
+          <article class="step">
+            <div class="step-copy">
+              <span class="step-num">6</span>
+              <h3>Laissez les cycles se répéter</h3>
+              <p>L’écran Actif affiche le temps écoulé depuis le démarrage effectif, le numéro du cycle et X. Le cycle 0 précède le premier intervalle complet.</p>
+              <p>La barre est une animation d’activité : elle recommence à chaque intervalle. Il n’y a pas de fin programmée.</p>
+            </div>
+            <figure>
+              <span class="watch"><img src="data:image/png;base64,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" width="144" height="168" alt="Timer actif à 3 secondes, avant le premier cycle, avec un intervalle de 5 secondes"></span>
+              <figcaption>À 3 s actives : cycle 0, le premier cycle arrive à 5 s.</figcaption>
+            </figure>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="exemple">
+      <div class="wrap">
+        <h2>Exemple complet : D = 10 s, X = 5 s</h2>
+        <p class="intro">Ici, <strong>t</strong> désigne le temps passé depuis l’appui long sur Select. Les dix premières secondes sont silencieuses. Le premier cycle arrive cinq secondes après le signal de départ.</p>
+        <ol class="timeline" aria-label="Chronologie avec délai de 10 secondes et intervalle de 5 secondes">
+          <li><time datetime="PT10S">t = 10 s</time><strong>Début</strong><small>Double mini-vibration</small></li>
+          <li><time datetime="PT15S">t = 15 s</time><strong>Cycle 1</strong><small>1 vibration courte</small></li>
+          <li><time datetime="PT20S">t = 20 s</time><strong>Cycle 2</strong><small>2 vibrations courtes</small></li>
+          <li><time datetime="PT25S">t = 25 s</time><strong>Cycle 3</strong><small>3 vibrations courtes</small></li>
+        </ol>
+        <div class="callout"><p><strong>Ensuite :</strong> cycle 4 à t = 30 s, cycle 5 à t = 35 s, et ainsi de suite sans fin jusqu’à l’arrêt manuel.</p></div>
+
+        <div class="sequence" aria-label="Captures de quatre moments du timer actif">
+          <figure>
+            <span class="watch"><img src="data:image/png;base64,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" width="144" height="168" alt="Écran actif avant le premier cycle"></span>
+            <figcaption><strong>Cycle 0</strong><br>Le premier intervalle est en cours.</figcaption>
+          </figure>
+          <figure>
+            <span class="watch"><img src="data:image/png;base64,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" width="144" height="168" alt="Écran actif au cycle 1 avec 8 secondes actives"></span>
+            <figcaption><strong>Cycle 1</strong><br>Premier intervalle complet.</figcaption>
+          </figure>
+          <figure>
+            <span class="watch"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJAAAACoCAYAAAAPb2d4AAAFiklEQVR4nO2d0Y0lJxBFN1An4N+V7BCchOUEPN8Ox0E4Alsja1atFjRV3AIK+iAd7WseUNXUad7bmY/59vNff/8L0Mu31QnA3iAQSCAQSCAQSCAQSCAQSGwlUKl99dfG3fufrksxLHOf5ii57MBWAlmLaXmvVjBrf89a1jx3AoEaa/fEtErydb2rPJ8cL5C3YD3zEWgzFIFaxbq2WtxS/NKce7Pcy268TiDrGM98ixwIlAiPQLX3egv6dDI99SNQInYUyDt3F44T6Ou69L3DWtDafO8cBAJogEAggUAggUAggUAggUAggUAggUAggUAggUAggUAgcbxA//z52w9a75fGld6/jqldP615Eq8WqFZsjxAIlCCJ1QK1+jz9pwtzB4GMxUagFwp0LabntGmt9dT/po+vTxAIgRDIUvTZAq2+91m8QqDWf9E9a7X6EegQPP9F7xEFgV4ikKXYlu8tCIRAj32tL70I9DKBYA4IBBIIBBIIBBIIBBIIBBIIBBIIBBIIBBIIBBIIBBIIBBIIBBIIBBIIBBIIBBIIBBIIBBIIBBJbCVRrq/N6M+kF8raVOe0a51iBetuqXGbFW12X9AJFtdl5IFASItuOAs2Kc6RA0W03gWbFOVKgns0bueHeNuP+I+K8UqARcy3jPW2GPGqcYwWK2DDvGpaxpbnRhfW21bXaSqCR6/TGjCxsT1tdKwRKIlBLkqg4xwsUuVGtoiAQAoWt1xs3It+nNmpfEOgQgZ7ayH1BoEXrRa5vlQeBEEiSB4EQSJIHgRBIkgeBEKgpDwIllGjGpkcKFNEQCIGkhkCNjZ65BgJtKpAqwMwN9sSZ0RDIsdkRc3pEUOaNbgg0cLMjRVDnRe3F6hq9RqBRBZpV2FlxjhIoUiIEeqlAqkSjC4RAGwjUK9KMAiHQRgKN3FAEeplAkA8EAgkEAgkEAgkEAgkEAgkEAgkEAolHgT4+PiCQn37/vgwl7y6BVm/2afzyx69LBfqMP0IiBJrESnlGnkIINInXnUBIFM9pp09TIIAWCAQSCAQSCAQSCAQSCAQSCAQSCAQSCAQSskDWn1ha1+qNPyNW5PwRa3l+ghyFJNA9ydlFuY5X5q4seuRas6S5Mkygllylp8QyxhqvlXctvuWePPO99xG5Tuv+0wnUI5f3tbp5I/JT7yNqPywfX8qpPVWg6/vWj7pegXqeylkCefMfsY63bscI5H2iVgv0lK/nVOhdJ2JflgpUu1ZPoBGbMPIE8uYbdd8z92+KQJa+qO8OowW6nwhZvwNFSzZUoOvGeotcmlP7WLDE9m5GLf5TX+mjxpKv92O4d53IMdMEshRqdAxYxzCBIi2HvPC7MJBAIJBAIJBAIJBAIJBAIJBAIJBAIJBAIJBAIJBAIJBAIJBAIJBIK5D3zxupf/Zp9f3uSkqB7gW1/g2vqHhgZ0uBSieTZUypv3XSPfVbY9zX6c01IykFahVu5OsseVjzW01agWobN6IQPQXyrts6gXrWz0BqgWqbfW21DW+NGSmQJb/e+8xGSoGenlDv024RJVIg72vvPWRja4FGvG7losawnky7yJRSoOtGlzav1F+69sy1iOLN7y7BVaLeXLORVqDsZC/sLBCoEwT6HwQCCQQCCQQCCQQCCQQCCQQCCQQCCQQCCQSawMk/dEwt0L3tWMTS779OEiq9QFESZCpaplxUthbI+xv3VgGfCvu0Zu3f0rzaiWpZPyPbChT12iLQ0zqta0t86/oZSS9Q7Ym1FKA0Ri2IVYQogVbXYHuBWtdPT31prJJLK9ZTfq15nnvJxLYCeZ9a5QTqOUksuXjHZeRogXolGyGQdR4nULBApaO99H6p31Iki0C1WJaTxJOfZb1spBYI8oNAIIFAIIFAIIFAIIFAIPEfQe0pKhyNjWAAAAAASUVORK5CYII=" width="144" height="168" alt="Écran actif au cycle 2 avec 14 secondes actives"></span>
+            <figcaption><strong>Cycle 2</strong><br>Deux intervalles complets.</figcaption>
+          </figure>
+          <figure>
+            <span class="watch"><img src="data:image/png;base64,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" width="144" height="168" alt="Écran actif au cycle 3 avec 16 secondes actives"></span>
+            <figcaption><strong>Cycle 3</strong><br>La répétition continue.</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section id="haptique">
+      <div class="wrap">
+        <h2>Lire le numéro d’un cycle au poignet</h2>
+        <p class="intro">De 1 à 9, Tick Every joue autant de vibrations courtes que le numéro. À partir de 10, chaque dizaine donne une vibration longue, puis chaque unité une vibration courte.</p>
+        <div class="haptic-grid">
+          <article class="haptic">
+            <h3>Cycle 7</h3>
+            <p aria-label="Sept vibrations courtes"><span class="pulse"></span><span class="pulse"></span><span class="pulse"></span><span class="pulse"></span><span class="pulse"></span><span class="pulse"></span><span class="pulse"></span></p>
+            <p>7 courtes</p>
+          </article>
+          <article class="haptic">
+            <h3>Cycle 12</h3>
+            <p aria-label="Une vibration longue puis deux courtes"><span class="pulse long"></span><span class="pulse"></span><span class="pulse"></span></p>
+            <p>1 longue + 2 courtes</p>
+          </article>
+          <article class="haptic">
+            <h3>Cycle 55</h3>
+            <p aria-label="Cinq vibrations longues puis cinq courtes"><span class="pulse long"></span><span class="pulse long"></span><span class="pulse long"></span><span class="pulse long"></span><span class="pulse long"></span><br><span class="pulse"></span><span class="pulse"></span><span class="pulse"></span><span class="pulse"></span><span class="pulse"></span></p>
+            <p>5 longues + 5 courtes</p>
+          </article>
+        </div>
+        <p class="legend"><span class="pulse long"></span> longue · <span class="pulse"></span> courte</p>
+        <div class="callout"><p><strong>Limite matérielle :</strong> un grand numéro peut créer un motif trop long, surtout avec un intervalle court. Si le motif ne peut pas finir avant le cycle suivant ou dépasse la capacité de la montre, cette vibration est sautée. Le compteur et les cycles continuent normalement.</p></div>
+      </div>
+    </section>
+
+    <section id="controle">
+      <div class="wrap">
+        <h2>Pause, reprise et arrêt</h2>
+        <div class="steps">
+          <article class="step">
+            <div class="step-copy">
+              <h3>Mettre en pause et reprendre</h3>
+              <p>Pendant l’état Actif, appuyez sur <strong>Select</strong> pour mettre en pause. Le temps et le compteur de cycles se figent.</p>
+              <p>Appuyez de nouveau sur Select pour reprendre exactement au même point. Le temps passé en pause n’est pas compté.</p>
+            </div>
+            <figure>
+              <span class="watch"><img src="data:image/png;base64,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" width="144" height="168" alt="Timer en pause à 41 secondes actives et au cycle 8"></span>
+              <figcaption>Select reprend ; Back demande l’arrêt.</figcaption>
+            </figure>
+          </article>
+          <article class="step">
+            <div class="step-copy">
+              <h3>Arrêter avec confirmation</h3>
+              <p>Depuis l’attente, l’état Actif ou la pause, appuyez sur <strong>Back</strong>. L’écran « Stop ? » évite les arrêts accidentels.</p>
+              <p><strong>Select</strong> confirme. <strong>Back</strong> annule et revient à l’état précédent. C’est la seule manière de terminer la répétition.</p>
+            </div>
+            <figure>
+              <span class="watch"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJAAAACoCAYAAAAPb2d4AAAFT0lEQVR4nO2d743UMBBHKZQG+IoEJdAEogHu85VDEVQAOp1WCsGxZ+Znxx7vs/SkxPG/zLx4d29P2g+fXn/9AYjyYfYCIDcIBBIIBBIIBBIIBBIIBBKpBCqVR/1Vu3N97bw0h6VvrY+ylgykEsiaTMu1q4RZ6yNjWdeZCQRqjB2Z0yrJ4zyrPG9sL5A3YZH+CJQMRaBWso7lat7S/KU+52K5l2w8nUDWNp7+FjkQaCE8Al1diya0tjPV6hFoITIK5O2bhe0EepyX3ndYE3rV39sHgQAaIBBIIBBIIBBIIBBIIBBIIBBIIBBIIBBIIBBIIBBIDBfo989v/+FtY6krjVG6bm1/blNbc/SaZZ294pNSoKtgWRJ51Wa0QK157xaoV3xSC1Sr8+4unnF6zmuptwjUWu+o+GwjkCLZsR6BfPFBIKNAV8m7SyBrEhFogkCepHqD3noZsCZppkAtuRHIIJB1npY8CLSpQOcgqQL1WEepTyuJowS6is82Ao0K0AoCXe1qFlEQqJK0WkA9bbyBHpUYZcyoQGp8Ugp0FQBvm1UE6jFmpL5HfNIKBHuDQCCBQCCBQCCBQCCBQCCBQCCBQCCBQCCBQCCBQCCBQCCBQCCBQCCBQCCBQCAxRaBamR2QDKwUu1sF8pYMAcwWu7QCRQsC9Y1dSoGUgkBPLpBaEKj/A7iFQJa2aiB7rs3bNzqudT5rXJ5KoGMfz1jeOdT+rfuKjmmJ5YiHIaVAkZvzFrV/bZ1KuTPOWwvkvVk1UdHSW6CrMVd4SJcTKBrs3gKpZSWB7phjKYGUgHvGiswdbdu7Xe9Y3pXX27/KiJRRAintPWN651fjeGc+p3+Zai0IVB9zVv6mC2SVCYGeXCDrjfZO3q4CrcLUT2HWdkryPOP2WEO0XVaW+jtQj6SofSxjjRiv98OIQJXgjO7XGgeBbhRIDbYy3qoCjYjl1gJFg66Opa4jmsjomAjUSaa7Ajqy76gk94jZFgJlZ7VEzgKBgiDQOwgUBIHeQaAgCPQOAgVBoHcQCCQQCCQQCCQQCCQQCCQQCCQQCCQQCCQQCCQQCCQQCCQQCCQQCCQQCCQQCCSqAn38/nkaLy8vsAghgb78+DpVoLf5ZwcO2hJdCjRTHnah9WAHgnsFmr0LzQ4YtOVpCgTQAoFAAoFAAoFAAoFAAoFAAoFAAoFAAoFAIpVA1r+OWseKzq+sfXYMe5NGoHPw1WR4+x/b39l3dbYQqCVX6em3tOklgbVvxl0qrUAtGXocRySI9s26S20h0PG69aVuhECqHJnEeYBAr/++OZ8pkOX6aqQV6Opc3YEs849+E51Jom0EstTxHuiJBXoE1voyU+pXa2v5BDT670B8CptMtuDvwBYCZXxyd2ELgWAeCAQSCAQSCAQSCAQSCAQSCAQSCAQSCAQSCAQSCAQSCAQSCAQSaQXy/lKy8ovKd/wac9ZffE4p0DnYluCvLlBWthSotDNZ2pTqWztdTa7WOq6OM5FSoFrALQlSju9YRybSCnQV9BGiRJKLQEkovUSUXnbOx602CLSxQCVpPBJ4RUGgJxVoxHFrLdaxrLvf6qQU6JiAUuBL9aVzT9/I7tQaC4Hg6UEgkEAgkEAgkEAgkEAgkEAgkEAgkEAgkEAgkEAgkEgt0LmoY82+n4ykF6iXBAgUY2uBot/We795P367bllDrX02thWo17FVoNa/aJyPS+0zkl6gY6m1s8oRSegIWbOQXqDW+Vkuyy6irAOBElETyJswdiAE6pbIlmS1egRKxLnUrpfqLRIoAilzZSG1QDAfBAIJBAIJBAIJBAIJBAKJv0rk1MEaME1RAAAAAElFTkSuQmCC" width="144" height="168" alt="Écran de confirmation Stop avec Select pour oui et Back pour non"></span>
+              <figcaption>Select : oui. Back : non.</figcaption>
+            </figure>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="ecrans">
+      <div class="wrap">
+        <h2>Sur les différents écrans Pebble</h2>
+        <p class="intro">La même interface s’adapte aux écrans couleur rectangulaires, aux écrans ronds et aux modèles noir et blanc. Les boutons et le parcours ne changent pas.</p>
+        <div class="gallery">
+          <figure>
+            <span class="watch"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJAAAACoCAYAAAAPb2d4AAAF5ElEQVR4nO2dTZLcNgxGfVBfIMv4ELlEtikvMmsfJ4fICZKaRbs6Cn9AfiAJko9Vr6yWRAICntQ9brvmyy8//voHoJcvqxOAvUEgkEAgkEAgkEAgkEAgkNhKoNR47c+d99xfep2KYZlbmqPksgNbCWRtpuVYrmHW/T1rWfPcCQSqrN0T0yrJ6/Wu8nxyvECtDeuZj0CboQhUa9b7yMVNxU/NeQ7LtezGdQJZz2mZb5EDgQLRIlDuWG9DS0+m0n4ECsSOArXO3YXjBHq9Tn3usDY0N791DgIBVEAgkEAgkEAgkEAgkEAgkEAgkEAgkEAgkEAgkEAgkDhOoL///C3J83jq/NJarevnjp8GAk0S6FSJjhMoJ4pFoJb9LXERaEMQCIFCC5R7a0KgQ2gVKCdNr0B8Btqc0QLV4t4gDwI5vG5d/zQQCIEQaIVALT+lnSwRAnU+URDocIFgDggEEggEEggEEggEEggEEggEEggEEggEEggEEggEEggEEggEEggEEggEEggEEggEEggEEggEEmEFyo3VeUXPbTahBGodJ+XmOa4UKHKxZuTmOa4SKHLRZubmORAoSOFm5jYz1jECeY+dc5sZ6wiBegoxq3grcvMc1ws0Ym7L+bNza80vEksEUhrUu4b13BW5IZCTQCPXsZ67IjcEQqBhApXGanmWCORZjJbiWs5blVuvQGqO1wvUsp7lvFW5eQik5IlAhvUs563KzUsgJVcEclhvZW6eA4EuFMhTIgS6VKDnPEU0BLpYIHV9BEKgUDFCCeR50SOKFzk3BNqgSZFzQ6DKRbdcuMca0XLryX1EDcILpDbKo8nRcuu5jtF12FagXBF65tTmRs6tN7+Zfbzmn7S2zomQ24hYCNRZtNZ5s3LzHrN7eMz/yvAWKEJuI2IdJ5BaQDVGhNy8JFrRuxAC9RbRY+0IuakirexZKIE8Gz5yvVmNjCxOeIFgDxAIJBAIJBAIJBAIJBAIJLYV6Ovv3/7H6pxuZEuBUvK0SvTr9z/+M+/zdUsOq+dHYTuBSvJYJXo17+Pj4yctTVw9PxJXCvRs3nsTrTmsnB8JBEIgBEIgBJoq0OrPMHwGCiyRdY3VP0XxU1hAiVbndCPbCgQxQCCQQCCQQCCQQCCQQCCQQCBnPv9ScOT50ZgqkKVYMwv6Hssjroc8z32lHFOvZwuJQAvi9l5/77GRLBPotf1+17x/N/Scl7v7nn/mClpaw3p+KX4pRm6t5/7UuaXa1Op2vEC5JlianCumZV7vdq35I+L1HrtCIKVIpc8P1ke9KpDXugg0WKDS49sqUG2N3FtJi0AeMRBogECWBpYE8nrq1ATqvWbrugg0+C2sJpanTLyFBRYo9/ZQE6W23/r2kotZi1PKvfV8S22uE+hGVjV2Fgg0GAQCKIBAIIFAIIFAIIFAIIFAIIFAIIFAIIFAIIFAIIFAIIFAIHG8QFF+q030nHpZ+kt3vYpamvt+LMKvS2qJu4NoRwtUixGxQU/hV+dTI6xAqadEqrilJ0qrQKV1rE+51P7UU9ASo6Umq2QLKZCy3SuQZ5xcw0dtr5JnuUDPUWtOS2Nz+2rxLOK1XKNyLYrUVwhUe91zB7fss8RUGlVaP3esJFytJgjksN0rkKUprc2qCduy3ysnBPpR/mzRUmwPUT3ipa5Jzelqgd4L+izWu0S54pcamlq3FDPX3B6BFFEsc68SaCSri6rku1vuRwq0I7WnXFQQCCQQCCQQCCQQCCQQCCQQCCQQCCQQCCQQCCSWC1T6bip3vhJr9DWoMXb72+ilAvV8MRhVoOg5jiK0QJZvn3N3/XN/7Qnh2fTeHJ9zR99Q2wtUKkCukF7bns2wShAl36MEyhViROFH3dHPYVm7luMO8oQRKFWQXFOe27Vzeore2pxU7rlrseS4izzLBSoV3iJBqyiWwvc0x3odPIEWCTRi27MpM64jqkTL38LeR+5YrVktc2t3vnoNpVws+bQIFEGi5QLB3iAQSCAQSCAQSCAQSCAQSPwLZ+pklwaPcikAAAAASUVORK5CYII=" width="144" height="168" alt="Écran Timer couleur rectangulaire sur Pebble Time"></span>
+            <figcaption><strong>Couleur rectangulaire</strong><br>Pebble Time</figcaption>
+          </figure>
+          <figure>
+            <span class="watch round"><img src="data:image/png;base64,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" width="180" height="180" alt="Écran Timer couleur adapté à la Pebble Time Round"></span>
+            <figcaption><strong>Couleur ronde</strong><br>Pebble Time Round</figcaption>
+          </figure>
+          <figure>
+            <span class="watch"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJAAAACoCAYAAAAPb2d4AAAGEElEQVR4nO2bi47jKBBF+/9/OqOeUVZW1kAVF6gq5xxptR0HU9dw/EjC/LwABH6iA0BtEAgkEAgkEAgkEAgkEAgkSgn08/Pzv//e21vtPrf3Xt/VsOzb20fJUoGSqUeTaXmvNWHW7TN9WXNWomTqJwh0fV1Vnl9KJp+ZzOt7ljae/RGoGIpAo8lqPbNc+/Y8c/X6G+WtQMn0Fa9ACJSIiGeg3vsIVIyKAnn3rULJ9JaH09XfA83sg0AAAxAIJBAIJBAIJBAIJBAIJBAIJBAIJBAIJBAIJBAIJB4n0OfvUq11ynfte315+7esBXoCjzuyrAI9VaJnHtWrvfpwNOHW7Z66CFQQBDrDM4/qtV+g3pojBHoAXoGuf99t+2w/EohnoOLsFmhU9xvk+eWxRzYj0Mxrb/9P47FHhkBneOyR7RbI8yntyRI986he8wJZ2yPQP555VHAMBAIJBAIJBAIJBAIJBAIJBAIJBAIJBAIJBAIJBAIJBAIJBAIJBAIJBAIJBAIJBAIJBAIJBAKJtAJl/vdVmbOdJtVR9/5VZ/SE7c7m7T/NuByt1iHzYJ3IhkCzARIP2slsCDQbIPHAncyWeRy6uY9W+yy+cNBWD9zpbFnHYZj7aLVr4YmBODV4EdkQyFt409nq3SdDNm++TIQkXHH2ePtYcSXZeXwI5Cm6aLBOCrT7GBHIUxSBzO1XXBF3cjzFysHwDK6lXVS2UfvMMpUWyNPfaYG8/akCRUmEQAmy9dpml+hrBMqebZVApyVCoETZEMhSEIHM+3n7jZAIgYpk8/SPQEH9Zc4WWaNb/1ila9FFB71j8DJni6zTrH+s0rVo4knKnC2yTrP+sUrXogvu3bvu/5HZMovarH+s0mdhYaJ2yROZbeY4do+DKcOxSp+FOwffGoSZfUb7Zs42m+8kX7OkdeWknsq2o9ZqHiPQbK3obJXl+Zv/eMXPAEkFypANgYycGLCIyT01BlHy/M0dUrVBxARlyKbUiRLnv7yh1TucmpjovmbqZBDnTY4UUBYEAgkEAgkEAgkEAgkEAonSAmX7SPuNlBz5HV8uqjki9s9AyeQrBPpsOyNf5P5ZKJd6xVf7rTbWSYzePxPlEiNQLsolRqBc1Ev84hkoEyVT8yksD3WTv54xAdVh5EECgUACgUACgUACgUACgUACgRajfqFYjaPplZ8ZdnCttaLuCnl631CPvr2O+E4MgQLq9ujlmH1vJ2ECvf++njWtb5Zb2+7+f1dr1Ie1fa9+r0arr8/td217YzMatxOECtSahN4+d/t795v9+7P/HTVmb2FfewXq/e1pd91mvdSrAq3qF4GsxSYHsHf5vuu/d7uwZhjdFmZyWmogUK+YeAaOtlueh5SrTq++JefKK5u1v92UEmhmAmbqcguzk1Kg1u2h1Zd1u/X20qo5qtPL7m3fyqhcNXcQU/WLiJrYUzz76BKAQAAdEAgkEAgkEAgkEAgkEAgkEAgkEAgkEAgkEAgkEAgkEAgkHi9Qxh8zM2aaJexIrOt7ZvpqvWdZqrobT90Koj1aoFGNjBOUYZGYh7QCjVYhXtc/91b8qTV721v93GWcqeEZk69bkbhrTbG1xs461+071kpbhDxFqECWZ5LZie2d5d4ryuwE7TpJMt3mUl6B3q9nzmDPNu8CeC+9/mdu2aMxiSClQCvOQq9Ayq2qhfVK5r36KplWU1Kg0Vk480y06xnIUu/9Ws0XQUqB3q/vRLlKdLf9rq+7PkfPSHfbrcfS2z4rimXfCGKrbyJ6UL1kuqJ4qZX2wYyuclmplxhSgUAggUAggUAggUAggUAggUAggUAggUAgES6QZX3OZ3ul1g6s64ysfVUiNO3MD4NZBVpVB4E8xY2/yHvb3G0fXSFWTvpsxs99d59QKwjX3buYavXCM0uWEbsWx+3Ku5L4BK/x6sHdC7+8be72sTwDeTJWkOeXHCle/QVlPVFGbXo1rFm87a2L41p9VZHnl7TPQN5bW6/f0XZvm9E+K66SVSQqIVD2ZwqegSIDdJ4dVn4K67W969fD6Bmo9R6fwuDrQSCQQCCQQCCQQCCQQCCQ+APHV7phxbWTTQAAAABJRU5ErkJggg==" width="144" height="168" alt="Écran Timer noir et blanc sur Pebble Classic"></span>
+            <figcaption><strong>Noir et blanc</strong><br>Pebble Classic</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section id="aide">
+      <div class="wrap">
+        <h2>Aide rapide</h2>
+        <div class="quick">
+          <article class="card"><h3>Le timer ne démarre pas</h3><p>Sur Prêt, maintenez Select au moins 0,7 s. Un clic court ne suffit pas.</p></article>
+          <article class="card"><h3>Je veux changer X ou D</h3><p>Avant le lancement, utilisez Back pour revenir au réglage voulu. Pendant l’exécution, arrêtez puis réglez de nouveau.</p></article>
+          <article class="card"><h3>Je veux ignorer les cycles au poignet</h3><p>Choisissez Vibrations : Non. Le double signal de démarrage reste actif.</p></article>
+          <article class="card"><h3>Je veux terminer</h3><p>Appuyez sur Back, puis Select pour confirmer. La répétition ne s’arrête jamais seule.</p></article>
+        </div>
+
+        <h2 style="margin-top: 3rem">FAQ</h2>
+        <details><summary>À quoi correspond le grand temps pendant l’exécution ?</summary><p>Il s’agit du temps actif écoulé depuis la fin du délai. Il s’arrête pendant une pause.</p></details>
+        <details><summary>Le délai produit-il des vibrations ?</summary><p>Non, il est silencieux. Une double mini-vibration est jouée exactement à la fin du délai pour annoncer le démarrage effectif.</p></details>
+        <details><summary>Quand arrive le premier cycle ?</summary><p>Un intervalle complet après le démarrage effectif, donc à D + X. Avec D = 10 s et X = 5 s, il arrive à t = 15 s.</p></details>
+        <details><summary>Pourquoi un cycle n’a-t-il parfois pas vibré ?</summary><p>Son motif pouvait être trop long pour la capacité matérielle ou pour finir avant le cycle suivant. L’exécution continue et les numéros restent justes.</p></details>
+        <details><summary>Comment reconnaître le cycle 34 ?</summary><p>Trois vibrations longues pour les dizaines, puis quatre courtes pour les unités.</p></details>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap"><p><strong>Tick Every</strong> — guide utilisateur autonome. Captures prises sur les émulateurs Pebble SDK 4.17.</p></div>
+  </footer>
+</body>
+</html>
