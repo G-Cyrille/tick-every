@@ -4,6 +4,10 @@ This runbook prepares and publishes Tick Every 1.0.0 to the Pebble Appstore.
 Run it only from the repository root after the release commit and GitHub URL
 exist.
 
+Version 1.0.0 was published as Appstore ID
+`f64d58f70cb8458390cd7749`. Its public listing is
+<https://apps.repebble.com/f64d58f70cb8458390cd7749>.
+
 ## Important: publication is immediate
 
 With Pebble Tool 5.0.39, `pebble publish` sends `visible=true` and

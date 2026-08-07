@@ -12,6 +12,10 @@
   "privacyPolicyUrl": "https://s3.grossholtz.net/public/tick-every/2026/08/8c24be09-b7d3-4196-9fdc-d8825bff1c3c-privacy-policy.html",
   "tutorialUrl": "https://s3.grossholtz.net/public/tick-every/2026/08/36a81484-bbc5-4fcc-965d-1c47f68a1bac-tutorial.html",
   "releaseUrl": "https://s3.grossholtz.net/public/tick-every/2026/08/344ea515-8898-400c-a687-dfb7097a4be3-tick-every-v1.0.0.pbw",
+  "appStoreId": "f64d58f70cb8458390cd7749",
+  "appStoreUrl": "https://apps.repebble.com/f64d58f70cb8458390cd7749",
+  "appStoreStatus": "published",
+  "appStoreReleaseUrl": "https://appstore-api.repebble.com/api/assets/pbw/f64d58f70cb8458390cd7749/1.0.0/5e65c8ee-9d12-4ab5-bae0-1d7aa6df0089.pbw",
   "platforms": [
     "aplite",
     "basalt",
@@ -28,5 +32,5 @@
     "screenshots": "store/screenshots"
   },
   "configurationUrl": "https://s3.grossholtz.net/public/tick-every/config/2026/08/ea2e99d6-723f-468a-90a2-a1d2a8a5400a-config.html",
-  "notes": "The current Pebble Tool 5.0.39 publishes immediately."
+  "notes": "Published from Pebble Tool 5.0.39, which publishes immediately."
 }

@@ -37,15 +37,19 @@
 - [x] Dépôt public `tick-every` créé
 - [x] Remote `origin` configuré
 - [x] Licence MIT ajoutée dans `LICENSE` et `package.json`
-- [ ] Historique et fichiers destinés au dépôt contrôlés
+- [x] Historique et fichiers destinés au dépôt contrôlés
 - [ ] Release GitHub `v1.0.0` créée avec le PBW et son checksum
 
 ## Publication
 
-- [ ] Compte vérifié avec `pebble login --status`
-- [ ] Fiche et assets relus une dernière fois
-- [ ] Autorisation explicite de publication reçue
-- [ ] Publication déclenchée
-- [ ] Page Appstore contrôlée sur chaque plateforme
+- [x] Compte vérifié avec `pebble login --status`
+- [x] Fiche et assets relus une dernière fois
+- [x] Autorisation explicite de publication reçue
+- [x] Publication déclenchée
+- [x] Page Appstore, PBW et screenshots des sept plateformes contrôlés
+
+Appstore ID : `f64d58f70cb8458390cd7749`
+
+Fiche publique : <https://apps.repebble.com/f64d58f70cb8458390cd7749>
 
 > Attention : Pebble Tool 5.0.39 force actuellement `visible=true` et `isPublished=true`. `pebble publish` publie immédiatement ; il ne constitue pas un dry-run.
