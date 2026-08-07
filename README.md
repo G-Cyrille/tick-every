@@ -218,6 +218,7 @@ anglaises [Install a PBW](#install-a-pbw), [Build and test](#build-and-test) et
 - [Illustrated user guide](docs/tutorial.html)
 - [Changelog](CHANGELOG.md)
 - [Contributing guide](CONTRIBUTING.md)
+- [MIT license](LICENSE)
 - [Official Pebble developer documentation](https://developer.repebble.com/)
 
 Maintained by **G-Cyrille**.

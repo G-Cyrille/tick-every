@@ -2,6 +2,7 @@
   "name": "tick-every",
   "description": "A repeating haptic timer that counts cycles on Pebble watches.",
   "author": "G-Cyrille",
+  "license": "MIT",
   "version": "1.0.0",
   "keywords": ["pebble-app"],
   "private": true,

@@ -34,9 +34,9 @@
 
 ## GitHub
 
-- [ ] Dépôt public `tick-every` créé
-- [ ] Remote `origin` configuré
-- [ ] Licence choisie et fichier `LICENSE` ajouté
+- [x] Dépôt public `tick-every` créé
+- [x] Remote `origin` configuré
+- [x] Licence MIT ajoutée dans `LICENSE` et `package.json`
 - [ ] Historique et fichiers destinés au dépôt contrôlés
 - [ ] Release GitHub `v1.0.0` créée avec le PBW et son checksum
 
