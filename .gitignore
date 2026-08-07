@@ -1,0 +1,7 @@
+build/
+.lock-waf*
+.pebble-sdk/
+node_modules/
+*.pbw
+setup.log
+pebble-logs.txt
