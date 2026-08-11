@@ -14,9 +14,9 @@
   "releaseUrl": "https://s3.grossholtz.net/public/tick-every/release/2026/08/8c5ecb7e-1fad-44c5-b9fb-679a222c1419-tick-every-v1.2.0.pbw",
   "appStoreId": "f64d58f70cb8458390cd7749",
   "appStoreUrl": "https://apps.repebble.com/f64d58f70cb8458390cd7749",
-  "appStoreStatus": "1.1.0 published",
-  "appStoreVersion": "1.1.0",
-  "appStoreReleaseUrl": "https://appstore-api.repebble.com/api/assets/pbw/f64d58f70cb8458390cd7749/1.1.0/95cf436b-68ec-4e03-9fab-e9882f9ec064.pbw",
+  "appStoreStatus": "1.2.0 published",
+  "appStoreVersion": "1.2.0",
+  "appStoreReleaseUrl": "https://appstore-api.repebble.com/api/assets/pbw/f64d58f70cb8458390cd7749/1.2.0/594dd3b3-5502-467c-9f4c-36c41870063d.pbw",
   "platforms": [
     "aplite",
     "basalt",
@@ -33,5 +33,5 @@
     "screenshots": "store/screenshots"
   },
   "configurationUrl": "https://s3.grossholtz.net/public/tick-every/config/2026/08/b6e5dc60-4cdb-447e-9f9f-54c41ea8a9a1-config.html",
-  "notes": "Version 1.2.0 is ready for publication. Appstore version 1.1.0 remains published."
+  "notes": "Version 1.2.0 was published on 2026-08-11."
 }
