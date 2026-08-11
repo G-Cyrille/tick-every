@@ -15,6 +15,23 @@
 
 ---
 
+## News
+
+### 2026-08-11 — Optional session history / Historique optionnel
+
+Tick Every 1.1.0 adds an opt-in, local-only history of the 32 latest completed
+sessions. It is available both on the watch (hold **Select** on the Timer
+screen) and from **Configure** in the Pebble mobile app. Saving remains off by
+default, and no statistics are sent to a server.
+
+Tick Every 1.1.0 ajoute un historique local et optionnel des 32 dernières
+sessions terminées. Il est consultable sur la montre (appui long sur **Select**
+depuis l'écran Timer) et dans **Configure** depuis l'app mobile Pebble. La
+sauvegarde reste désactivée par défaut et aucune statistique n'est envoyée à un
+serveur.
+
+See the full details in the [changelog](CHANGELOG.md).
+
 ## English
 
 Tick Every repeats one interval until you stop it. At the end of each cycle,
@@ -24,9 +41,10 @@ at the screen. An optional start delay gives you time to get ready.
 There is no Tick Every account, analytics or advertising. The timer itself
 runs entirely on the watch and does not need a phone or Internet connection.
 English is the default interface language; French can be selected from
-**Configure** in the Pebble mobile app. Opening that hosted settings page
-requires Internet access, but the saved choice and every timer feature work
-offline afterwards.
+**Configure** in the Pebble mobile app. The same page can opt in to a local
+history of the 32 most recent completed sessions and display it. Opening that
+hosted settings page requires Internet access, but the settings, timer and
+watch history work offline afterwards.
 
 ### How it works
 
@@ -34,9 +52,12 @@ Watch setup is a four-step flow: **Timer → Delay → Haptics → Ready**. Set 
 **interval**, an optional **start delay**, and whether numbered haptics are
 enabled. Hold **Select** for 0.7 seconds to start.
 
-To change the watch language, open Tick Every in the Pebble mobile app, choose
-**Configure**, select English or Français, then save. The phone sends the
-choice to the watch, where it is persisted.
+Open **Configure** in the Pebble mobile app to change the watch language or
+enable **Save session history**. Statistics are disabled by default. When
+enabled before a session starts and still enabled when it stops, Tick Every
+saves its end date, total and active durations, cycle count, interval, delay
+and haptic setting. The watch is the canonical store; PebbleKit JS keeps a
+local phone mirror so the configuration page can show the same history.
 
 For a 10-second delay and a 5-second interval:
 
@@ -61,20 +82,24 @@ you still know when the delay has ended.
 - **Up / Down:** change the current watch setting.
 - **Select:** confirm a setting; pause or resume a running timer.
 - **Hold Select:** start from the Ready screen.
+- **Hold Select on the first Timer screen:** open session history; use Up / Down
+  to browse and Back to return.
 - **Back:** return to the previous setting, or open the stop confirmation while
   the timer is running.
 - Repeating intervals from **1 second to 1 hour**.
 - Optional delays of **0, 5, 10, 15, 30 or 60 seconds**.
 - Phase-accurate elapsed time and cycle count, including after a late wake-up.
-- Persistent interval, delay, haptic and language settings.
+- Optional, local-only history of the **32 most recent explicitly stopped
+  sessions**, with oldest-first eviction when full.
+- Persistent interval, delay, haptic, language and statistics settings.
 - High-contrast layouts for rectangular, round, colour and monochrome screens.
 - English and French interface; English by default.
 
 ### Screenshots
 
-| Configure the interval | Follow the current cycle | Round display |
-| :---: | :---: | :---: |
-| <img src="docs/screenshots/01-timer-basalt.png" width="144" alt="Interval setup on a rectangular colour Pebble"> | <img src="docs/screenshots/10-running-cycle3-basalt.png" width="144" alt="Running timer at cycle 3"> | <img src="docs/screenshots/13-timer-chalk.png" width="180" alt="Interval setup on a Pebble Time Round"> |
+| Configure the interval | Follow the current cycle | Session history | Round display |
+| :---: | :---: | :---: | :---: |
+| <img src="docs/screenshots/01-timer-basalt.png" width="144" alt="Interval setup on a rectangular colour Pebble"> | <img src="docs/screenshots/10-running-cycle3-basalt.png" width="144" alt="Running timer at cycle 3"> | <img src="docs/screenshots/16-history-basalt.png" width="144" alt="Newest-first local session history"> | <img src="docs/screenshots/13-timer-chalk.png" width="180" alt="Interval setup on a Pebble Time Round"> |
 
 More states and platform variants are available in
 [`docs/screenshots/`](docs/screenshots/). The illustrated user guide is
@@ -113,10 +138,11 @@ pebble build
 pebble install --emulator basalt
 ```
 
-`./tests/run.sh` compiles the portable timer logic with strict compiler flags,
-runs **19,146 C assertions**, then checks the mobile language validation,
-persistence and retry flow in Node. `pebble build` builds every platform declared
-in `package.json` and creates `build/tick-every.pbw`.
+`./tests/run.sh` compiles the portable timer and history logic with strict
+compiler flags, runs more than **19,200 C assertions**, then checks mobile
+configuration validation, history decoding, persistence and retry flows in
+Node. `pebble build` builds every platform declared in `package.json` and
+creates `build/tick-every.pbw`.
 
 For UI work, inspect at least one rectangular colour target (`basalt`), one
 round target (`chalk` or `gabbro`) and one monochrome target (`aplite` or
@@ -138,11 +164,12 @@ opens the mobile language page and sends the saved choice to the watch through
 AppMessage; it is not needed while a timer is running.
 
 ```text
-src/c/tick-every.c   UI, state machine, persistence, scheduling and haptics
-src/c/timer_logic.*  Portable interval, delay, cycle and haptic-code logic
-src/pkjs/index.js    Mobile configuration lifecycle and AppMessage delivery
-src/pkjs/config.html Hosted English/French language form
-tests/               Host-side C tests for timer_logic
+src/c/tick-every.c      UI, state machine, persistence, scheduling and haptics
+src/c/timer_logic.*     Portable interval, delay, cycle and haptic-code logic
+src/c/session_history.* Versioned session records, CRC and serialization
+src/pkjs/index.js       Mobile configuration, local mirror and AppMessage
+src/pkjs/config.html    Hosted language, statistics and history page
+tests/                  Host-side C and PebbleKit JS tests
 resources/images/    Pebble launcher icon
 docs/                Development guide, tutorial and reference screenshots
 store/               Appstore copy, artwork, screenshots and release material
@@ -186,10 +213,11 @@ jusqu'à son arrêt manuel.
 
 Le timer fonctionne sur la montre, sans compte Tick Every, analytics ou
 publicité. Il n'a besoin ni du téléphone ni d'Internet pendant son utilisation.
-L'anglais est la langue par défaut. Pour passer en français, ouvrir Tick Every
-dans l'app mobile Pebble, choisir **Configure**, sélectionner Français puis
-enregistrer. L'ouverture de cette page hébergée nécessite Internet ; le choix
-est ensuite sauvegardé et le timer fonctionne hors ligne.
+L'anglais est la langue par défaut. La page **Configure** de l'app mobile permet
+de passer en français et d'activer, si on le souhaite, l'historique local des
+32 dernières sessions. L'ouverture de cette page hébergée nécessite Internet ;
+les réglages, le timer et l'historique sur la montre fonctionnent ensuite hors
+ligne.
 
 ### Utiliser l'app
 
@@ -199,12 +227,21 @@ Vibrations → Prêt**.
 - **Up / Down** modifient la valeur affichée.
 - **Select** valide ; pendant le timer, il met en pause ou reprend.
 - Un appui long de **0,7 s sur Select** lance le timer depuis l'écran prêt.
+- Sur le premier écran Timer, un appui long sur **Select** ouvre l'historique ;
+  Up / Down le parcourent et Back revient au timer.
 - **Back** revient au réglage précédent ou demande confirmation avant l'arrêt.
 - L'intervalle va de **1 seconde à 1 heure**.
 - Le délai peut être **0, 5, 10, 15, 30 ou 60 secondes**.
 - Les vibrations numérotées peuvent être coupées ; le double signal de départ
   reste actif.
-- Les réglages sont sauvegardés sur la montre.
+- L'historique est désactivé par défaut. Une session est enregistrée seulement
+  si l'option était active à son démarrage et l'est encore à son arrêt manuel.
+  Un arrêt pendant le délai ou une fermeture brutale ne crée pas d'entrée.
+- L'historique contient la date de fin, la durée totale, la durée active, les
+  cycles, l'intervalle, le délai et l'état des vibrations. À la 33e session, la
+  plus ancienne est remplacée.
+- Les réglages et l'historique restent locaux à la montre et au téléphone :
+  aucun compte Tick Every, serveur de statistiques ou cloud n'est utilisé.
 
 Pour installer un PBW, développer l'app ou contribuer, suivre les sections
 anglaises [Install a PBW](#install-a-pbw), [Build and test](#build-and-test) et

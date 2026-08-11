@@ -6,6 +6,7 @@
 - [x] Nom du package : `tick-every`
 - [x] UUID stable : `0987ccfa-3f0c-4225-bea5-140db3a87514`
 - [x] Version initiale : `1.0.0`
+- [x] Version à publier : `1.1.0`
 - [x] Catégorie : `Tools & Utilities` (`tools`)
 - [x] Nom public du développeur : `G-Cyrille`
 - [x] Adresse de support : `oiawo.cir@gmail.com`
@@ -14,7 +15,7 @@
 ## Code et package
 
 - [x] Build des sept plateformes vert
-- [x] Tests natifs verts — 19 146 assertions
+- [x] Tests natifs et mobile verts — 19 332 assertions
 - [x] Icône 25×25 visible dans le launcher
 - [x] PBW final copié dans `store/release/`
 - [x] SHA-256 du PBW enregistré
@@ -24,11 +25,12 @@
 
 - [x] Description française
 - [x] Description anglaise
-- [x] Release notes 1.0.0
+- [x] Release notes 1.1.0
 - [x] Privacy policy
 - [x] Icônes Appstore 80×80 et 144×144
 - [x] Banner 720×320
 - [x] Au moins un screenshot natif par plateforme supportée
+- [x] Screenshot de l'historique ajouté à la fiche
 - [x] Anglais par défaut et français via la configuration mobile
 - [x] Description commune finale limitée à 1 600 caractères — 1 044 caractères
 
@@ -45,8 +47,9 @@
 - [x] Compte vérifié avec `pebble login --status`
 - [x] Fiche et assets relus une dernière fois
 - [x] Autorisation explicite de publication reçue
-- [x] Publication déclenchée
-- [x] Page Appstore, PBW et screenshots des sept plateformes contrôlés
+- [ ] Publication 1.1.0 déclenchée
+- [ ] Description Appstore mise à jour avec l'historique des 32 sessions
+- [ ] Page Appstore, PBW et screenshots contrôlés après publication 1.1.0
 
 Appstore ID : `f64d58f70cb8458390cd7749`
 

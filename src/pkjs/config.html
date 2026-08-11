@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#6cb7d8">
   <title>Tick Every — Settings</title>
   <style>
-    :root { --ink:#102a43; --blue:#6cb7d8; --green:#2d8c68; --orange:#f3a83b; --paper:#f7f3e8; --white:#fff; }
-    * { box-sizing: border-box; }
+    :root { --ink:#102a43; --blue:#6cb7d8; --green:#2d8c68; --orange:#f3a83b; --paper:#f7f3e8; --muted:#627d98; --white:#fff; }
+    * { box-sizing:border-box; }
     body { margin:0; color:var(--ink); background:var(--paper); font:17px/1.45 system-ui,-apple-system,sans-serif; }
     header { padding:34px 22px 26px; background:var(--blue); }
     .title { display:flex; align-items:center; gap:14px; max-width:620px; margin:auto; }
@@ -17,17 +17,33 @@
     h1 { margin:0; font-size:30px; line-height:1.05; }
     header p { margin:6px 0 0; font-size:15px; font-weight:700; letter-spacing:.05em; }
     main { max-width:620px; margin:auto; padding:28px 20px 42px; }
+    section + section { margin-top:34px; padding-top:30px; border-top:2px solid rgba(16,42,67,.12); }
     h2 { margin:0 0 6px; font-size:24px; }
-    .hint { margin:0 0 22px; color:#334e68; }
+    .hint { margin:0 0 20px; color:#334e68; }
     .options { display:grid; gap:13px; }
-    label { display:flex; align-items:center; gap:14px; padding:18px; background:var(--white); border:3px solid transparent; border-radius:14px; box-shadow:0 3px 0 rgba(16,42,67,.12); cursor:pointer; }
-    label:has(input:checked) { border-color:var(--green); }
+    .option { display:flex; align-items:center; gap:14px; padding:18px; background:var(--white); border:3px solid transparent; border-radius:14px; box-shadow:0 3px 0 rgba(16,42,67,.12); cursor:pointer; }
+    .option.selected { border-color:var(--green); }
     input { width:22px; height:22px; margin:0; accent-color:var(--green); }
     strong { display:block; font-size:19px; }
     small { display:block; margin-top:2px; color:#486581; }
-    button { width:100%; margin-top:24px; padding:16px 20px; border:0; border-radius:14px; color:var(--white); background:var(--green); font:700 18px system-ui,-apple-system,sans-serif; box-shadow:0 4px 0 #1d654b; cursor:pointer; }
+    .toggle { justify-content:space-between; }
+    .toggle-copy { padding-right:12px; }
+    .toggle input { flex:0 0 auto; width:46px; height:26px; }
+    button { width:100%; margin-top:30px; padding:16px 20px; border:0; border-radius:14px; color:var(--white); background:var(--green); font:700 18px system-ui,-apple-system,sans-serif; box-shadow:0 4px 0 #1d654b; cursor:pointer; }
     button:active { transform:translateY(2px); box-shadow:0 2px 0 #1d654b; }
-    .privacy { margin:22px 4px 0; font-size:14px; color:#627d98; }
+    .history-summary { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 14px; }
+    .badge { flex:0 0 auto; padding:5px 10px; border-radius:999px; background:var(--blue); font-size:13px; font-weight:800; }
+    .history { display:grid; gap:12px; }
+    .session { position:relative; overflow:hidden; padding:15px 16px 14px 20px; border:1px solid rgba(16,42,67,.15); border-radius:13px; background:var(--white); box-shadow:0 3px 0 rgba(16,42,67,.08); }
+    .session::before { content:""; position:absolute; inset:0 auto 0 0; width:6px; background:var(--green); }
+    .session:nth-child(even)::before { background:var(--orange); }
+    .session-time { margin:0 0 8px; font-weight:800; }
+    .metrics { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px 14px; margin:0; }
+    .metric { color:#334e68; font-size:15px; }
+    .metric b { color:var(--ink); }
+    .empty { padding:24px 18px; border:2px dashed rgba(16,42,67,.22); border-radius:14px; text-align:center; color:var(--muted); background:rgba(255,255,255,.45); }
+    .privacy { margin:22px 4px 0; font-size:14px; color:var(--muted); }
+    @media (max-width:380px) { .metrics { grid-template-columns:1fr; } }
   </style>
 </head>
 <body>
@@ -38,36 +54,153 @@
     </div>
   </header>
   <main>
-    <h2>Watch language</h2>
-    <p class="hint">Langue de l’interface sur la montre</p>
     <form id="settings">
-      <div class="options">
-        <label>
-          <input type="radio" name="language" value="0" checked>
-          <span><strong>English</strong><small>Default watch interface</small></span>
+      <section>
+        <h2>Watch language</h2>
+        <p class="hint">Langue de l’interface sur la montre</p>
+        <div class="options" id="language-options">
+          <label class="option">
+            <input type="radio" name="language" value="0" checked>
+            <span><strong>English</strong><small>Default watch interface</small></span>
+          </label>
+          <label class="option">
+            <input type="radio" name="language" value="1">
+            <span><strong>Français</strong><small>Interface de la montre en français</small></span>
+          </label>
+        </div>
+      </section>
+
+      <section>
+        <h2>Session statistics</h2>
+        <p class="hint">Statistiques des sessions</p>
+        <label class="option toggle" id="statistics-option">
+          <span class="toggle-copy">
+            <strong>Save session history</strong>
+            <small>Enregistrer l’historique des sessions sur la montre et le téléphone</small>
+          </span>
+          <input type="checkbox" name="saveStatistics" aria-label="Save session history">
         </label>
-        <label>
-          <input type="radio" name="language" value="1">
-          <span><strong>Français</strong><small>Interface de la montre en français</small></span>
-        </label>
-      </div>
+      </section>
+
+      <section>
+        <div class="history-summary">
+          <div><h2>History</h2><p class="hint" style="margin:0">Historique local</p></div>
+          <span class="badge" id="history-count">0 / 32</span>
+        </div>
+        <div class="history" id="history"></div>
+      </section>
+
       <button type="submit">Save · Enregistrer</button>
     </form>
-    <p class="privacy">This setting is stored locally by the Pebble app and on your watch. No personal data is collected.</p>
+    <p class="privacy">Statistics are optional and stay locally on your watch and phone. Nothing is uploaded to Tick Every, the developer or a third party.</p>
   </main>
   <script>
     (function() {
-      var params = new URLSearchParams(window.location.search);
-      var language = params.get('language') === '1' ? '1' : '0';
-      var selected = document.querySelector('input[name="language"][value="' + language + '"]');
+      var state = { language:0, saveStatistics:false, history:[] };
+      var stateMatch = window.location.hash.match(/(?:^#|&)state=([^&]+)/);
+      var historyElement = document.getElementById('history');
+      var languageInputs = document.querySelectorAll('input[name="language"]');
+      var statisticsInput = document.querySelector('input[name="saveStatistics"]');
+
+      function expandSession(values) {
+        if (!Array.isArray(values) || values.length !== 7) return null;
+        return {
+          endedAt:values[0], totalDuration:values[1], activeDuration:values[2],
+          cycles:values[3], interval:values[4], delay:values[5],
+          haptics:values[6] === 1
+        };
+      }
+
+      if (stateMatch) {
+        try {
+          var parsed = JSON.parse(decodeURIComponent(stateMatch[1]));
+          if (parsed && (parsed.l === 0 || parsed.l === 1) &&
+              typeof parsed.s === 'boolean' && Array.isArray(parsed.h)) {
+            state.language = parsed.l;
+            state.saveStatistics = parsed.s;
+            state.history = parsed.h.slice(0, 32).map(expandSession).filter(
+              function(session) { return session !== null; });
+          }
+        } catch (error) {}
+      }
+
+      function formatDuration(seconds) {
+        var hours = Math.floor(seconds / 3600);
+        var minutes = Math.floor((seconds % 3600) / 60);
+        var remaining = seconds % 60;
+        function pad2(value) { return value < 10 ? '0' + value : String(value); }
+        return hours > 0
+          ? hours + ':' + pad2(minutes) + ':' + pad2(remaining)
+          : minutes + ':' + pad2(remaining);
+      }
+
+      function escapeText(value) {
+        var span = document.createElement('span');
+        span.textContent = String(value);
+        return span.innerHTML;
+      }
+
+      function formatDate(timestamp, locale) {
+        var date = new Date(timestamp * 1000);
+        try {
+          return date.toLocaleString(locale);
+        } catch (error) {
+          try { return date.toLocaleString(); }
+          catch (fallbackError) { return date.toISOString(); }
+        }
+      }
+
+      function renderHistory() {
+        var locale = document.querySelector('input[name="language"]:checked').value === '1'
+          ? 'fr-FR' : 'en-GB';
+        var html = '';
+        document.getElementById('history-count').textContent = state.history.length + ' / 32';
+        state.history.forEach(function(session) {
+          if (!session || typeof session.endedAt !== 'number') return;
+          var ended = formatDate(session.endedAt, locale);
+          html += '<article class="session">' +
+            '<p class="session-time">' + escapeText(ended) + '</p>' +
+            '<div class="metrics">' +
+              '<span class="metric"><b>Total:</b> ' + escapeText(formatDuration(session.totalDuration)) + '</span>' +
+              '<span class="metric"><b>Active:</b> ' + escapeText(formatDuration(session.activeDuration)) + '</span>' +
+              '<span class="metric"><b>Cycles:</b> ' + escapeText(session.cycles) + '</span>' +
+              '<span class="metric"><b>Interval:</b> ' + escapeText(session.interval) + ' s</span>' +
+              '<span class="metric"><b>Delay:</b> ' + escapeText(session.delay) + ' s</span>' +
+              '<span class="metric"><b>Haptics:</b> ' + (session.haptics ? 'On · Oui' : 'Off · Non') + '</span>' +
+            '</div></article>';
+        });
+        historyElement.innerHTML = html || '<div class="empty">No saved sessions yet.<br>Aucune session enregistrée.</div>';
+      }
+
+      function updateSelections() {
+        Array.prototype.forEach.call(document.querySelectorAll('.option'), function(option) {
+          var input = option.querySelector('input');
+          option.classList.toggle('selected', !!input.checked);
+        });
+      }
+
+      var selected = document.querySelector('input[name="language"][value="' + state.language + '"]');
       if (selected) selected.checked = true;
+      statisticsInput.checked = state.saveStatistics;
+      Array.prototype.forEach.call(languageInputs, function(input) {
+        input.addEventListener('change', function() {
+          updateSelections();
+          renderHistory();
+        });
+      });
+      statisticsInput.addEventListener('change', updateSelections);
 
       document.getElementById('settings').addEventListener('submit', function(event) {
         event.preventDefault();
-        var value = document.querySelector('input[name="language"]:checked').value;
-        var payload = encodeURIComponent(JSON.stringify({ language: Number(value) }));
+        var language = Number(document.querySelector('input[name="language"]:checked').value);
+        var payload = encodeURIComponent(JSON.stringify({
+          language:language,
+          saveStatistics:statisticsInput.checked
+        }));
         window.location.href = 'pebblejs://close#' + payload;
       });
+      updateSelections();
+      renderHistory();
     }());
   </script>
 </body>

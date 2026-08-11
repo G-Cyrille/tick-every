@@ -1,6 +1,6 @@
 # Publishing Tick Every
 
-This runbook prepares and publishes Tick Every 1.0.0 to the Pebble Appstore.
+This runbook prepares and publishes Tick Every 1.1.0 to the Pebble Appstore.
 Run it only from the repository root after the release commit and GitHub URL
 exist.
 
@@ -22,7 +22,7 @@ Do not run the final command without the maintainer's explicit approval.
 - The public repository exists at `https://github.com/G-Cyrille/tick-every`.
 - The release commit contains the final source, README, screenshots and
   privacy policy.
-- `store/release/tick-every-v1.0.0.pbw` matches `build/tick-every.pbw`.
+- `store/release/tick-every-v1.1.0.pbw` matches `build/tick-every.pbw`.
 - `store/SHA256SUMS` matches the release PBW.
 - The Pebble CLI is logged into the same Pebble Account as the mobile app.
 - Every completed item in `store/submission-checklist.md` has been checked.
@@ -32,14 +32,14 @@ Do not run the final command without the maintainer's explicit approval.
 ```sh
 ./tests/run.sh
 pebble build
-shasum -a 256 store/release/tick-every-v1.0.0.pbw
+shasum -a 256 store/release/tick-every-v1.1.0.pbw
 pebble login --status
 ```
 
 The expected SHA-256 for this build is:
 
 ```text
-17c6ca9cb49673be67fef6fb7f3ff0c7196a99eb0029e16c69f618f83eb078a7
+d53cce64c73f337a92f065cc181245a54fcb10572a5abb8baa896cf02ade03ae
 ```
 
 Open and inspect at least these files before publishing:
@@ -63,7 +63,7 @@ pebble publish \
   --non-interactive \
   --no-gif-all-platforms \
   --name "Tick Every" \
-  --version "1.0.0" \
+  --version "1.1.0" \
   --description "$TICK_EVERY_DESCRIPTION" \
   --release-notes "$TICK_EVERY_RELEASE_NOTES" \
   --source "https://github.com/G-Cyrille/tick-every" \
@@ -78,6 +78,7 @@ pebble publish \
     store/screenshots/basalt_ready.png \
     store/screenshots/basalt_start-delay.png \
     store/screenshots/basalt_cycle-3.png \
+    store/screenshots/basalt_history.png \
     store/screenshots/chalk_timer.png \
     store/screenshots/diorite_timer.png \
     store/screenshots/emery_timer.png \
@@ -98,6 +99,9 @@ between the final verification and this command.
 4. Run the 10-second delay / 5-second interval reference scenario.
 5. Confirm the start signal at 10 seconds and cycles at 15, 20 and 25 seconds.
 6. Verify pause, resume and stop confirmation.
+7. Enable session saving in **Configure**, stop a completed session, then check
+   that it appears both in mobile Configure and in the watch history opened by
+   holding **Select** on the Timer screen.
 
 If a release-blocking problem appears, stop promoting the listing and use the
 Pebble developer dashboard to correct its publication state. Prepare a tested

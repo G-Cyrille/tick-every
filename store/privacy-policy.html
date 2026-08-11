@@ -20,23 +20,27 @@
   <main>
     <span class="badge">Tick Every</span>
     <h1>Privacy Policy</h1>
-    <p>Effective date: 8 August 2026</p>
+    <p>Effective date: 11 August 2026</p>
 
     <div class="card">
       <strong>Tick Every does not collect, transmit, sell or share personal data.</strong>
     </div>
 
     <h2>Data and permissions</h2>
-    <p>The timer runs locally on the Pebble watch. Timer preferences and the selected interface language are stored locally so they can be restored the next time the app opens. Tick Every has no account system, analytics, advertising or location access.</p>
+    <p>The timer runs locally on the Pebble watch. Timer preferences, the selected interface language and the optional statistics setting are stored locally so they can be restored the next time the app opens. Tick Every has no account system, analytics, advertising or location access.</p>
+
+    <h2>Optional session history</h2>
+    <p>Session history is disabled by default. If you enable it, Tick Every stores up to 32 completed sessions on the watch. A record contains its end date and time, total and active durations, cycle count, interval, start delay and whether numbered haptics were enabled. When the history is full, the oldest record is replaced. Sessions stopped before active timing begins, or interrupted without a confirmed stop, are not recorded.</p>
+    <p>The Pebble mobile component keeps a local mirror of the same history so it can be displayed in the configuration page. The watch remains the source of truth. The mirror is stored in PebbleKit JS local storage on your phone; it is not uploaded to Tick Every, the developer or a statistics service.</p>
 
     <h2>Mobile configuration page</h2>
-    <p>Changing the watch language opens a static HTTPS page hosted on <code>s3.grossholtz.net</code>. The page contains no analytics, advertising, cookies or third-party scripts. The selected language is sent to the watch through the Pebble app. Like most web servers, the host may process standard request metadata such as IP address and user agent for delivery and operational logs.</p>
+    <p>Changing the watch language or statistics setting opens a static HTTPS page hosted on <code>s3.grossholtz.net</code>. The page contains no analytics, advertising, cookies or third-party scripts. Settings are sent to the watch through the Pebble app. History is passed to the page in the URL fragment, which browsers do not send to the hosting server. Like most web servers, the host may process standard request metadata such as IP address and user agent for delivery and operational logs.</p>
 
     <h2>Third parties</h2>
-    <p>Tick Every does not send timer settings or usage data to the developer or to third parties. Installation, distribution and the configuration bridge are handled by the Pebble platform under its own terms and privacy policy.</p>
+    <p>Tick Every does not send timer settings, session records or usage data to the developer or to third parties. Installation, distribution and the configuration bridge are handled by the Pebble platform under its own terms and privacy policy.</p>
 
     <h2>Deletion</h2>
-    <p>Uninstalling Tick Every removes the app and its locally stored preferences from the watch.</p>
+    <p>Disabling session history stops new records but does not silently erase existing ones. Uninstalling Tick Every removes its preferences and history from the watch. Removing the Pebble mobile app or clearing its application data removes the local phone mirror.</p>
 
     <h2>Contact</h2>
     <p>For questions about this policy, use the “Contact developer” action on the Tick Every Appstore page or email <a href="mailto:oiawo.cir@gmail.com">oiawo.cir@gmail.com</a>.</p>

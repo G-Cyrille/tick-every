@@ -18,6 +18,8 @@ Features:
 - optional start delay;
 - optional haptic cycle counter;
 - quick pause, resume and stop controls;
+- optional, local-only history of the 32 most recent completed sessions;
+- history available both on the watch and from Configure in the Pebble app;
 - timer works fully offline after installation;
 - English by default, with French selectable from Configure in the Pebble mobile app;
 - layouts for rectangular, round, color and black-and-white displays.
@@ -30,4 +32,4 @@ Tools & Utilities (`tools` in the CLI)
 
 ## Suggested keywords
 
-timer, interval, haptic, vibration, repeating, counter
+timer, interval, haptic, vibration, repeating, counter, history

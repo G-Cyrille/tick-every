@@ -8,13 +8,13 @@ l'app mobile Pebble et `pebble-tool` en 2026.
 Tick Every est une watchapp native C et mono-fonction. Son parcours de réglage
 est linéaire : **Timer → Délai → Vibrations → Prêt**. Le runtime du timer est
 autonome ; un petit composant PebbleKit JS sert uniquement à choisir la langue
-depuis **Configure** dans l'app mobile Pebble.
+et à gérer l'option d'historique depuis **Configure** dans l'app mobile Pebble.
 
 ### Boutons et state machine
 
 | État | Up / Down | Select | Back |
 | --- | --- | --- | --- |
-| Timer | valeur suivante / précédente | passer à Délai | quitter l'app |
+| Timer | valeur suivante / précédente | passer à Délai ; appui long : historique | quitter l'app |
 | Délai | valeur suivante / précédente | passer à Vibrations | revenir à Timer |
 | Vibrations | Oui / Non | passer à Prêt | revenir à Délai |
 | Prêt | — | appui long de 0,7 s : lancer | revenir à Vibrations |
@@ -22,6 +22,7 @@ depuis **Configure** dans l'app mobile Pebble.
 | Actif | — | mettre en pause | demander confirmation de l'arrêt |
 | Pause | — | reprendre | demander confirmation de l'arrêt |
 | Confirmation | — | confirmer l'arrêt | annuler et revenir à l'état précédent |
+| Historique | session précédente / suivante | — | revenir à Timer |
 
 Un clic court sur Select dans l'écran Prêt joue seulement le halo visuel. Le
 timer démarre uniquement après un appui long de 700 ms, ce qui évite un départ
@@ -81,18 +82,59 @@ départ reste toujours émis. Le timer, le délai, le toggle et la langue sont
 absente ou invalide est remplacée par le défaut : 5 s, aucun délai, vibrations
 activées et interface anglaise.
 
-### Configuration mobile de la langue
+### Historique local des sessions
+
+La sauvegarde des statistiques est **désactivée par défaut**. Elle se règle
+uniquement depuis la page mobile. Une session est enregistrée si l'option était
+active au lancement et l'est encore lors de l'arrêt confirmé. L'app ne crée pas
+d'entrée pour un arrêt pendant le délai, une fermeture de la watchapp ou un
+crash : elle n'enregistre que les sessions dont le timer actif a démarré et que
+l'utilisateur arrête explicitement.
+
+Chaque entrée contient : timestamp de fin, durée totale depuis la demande de
+départ, durée active hors pauses, nombre de cycles, intervalle, délai et état du
+comptage haptique. La durée totale inclut le délai et les pauses ; la durée
+active correspond au compteur visible. Les champs longs sont saturés à
+`UINT32_MAX`, soit environ 136 ans à une seconde près.
+
+La montre conserve les **32 dernières sessions**, de la plus récente à la plus
+ancienne. La 33e remplace la plus ancienne. Un appui long sur Select depuis le
+premier écran ouvre cette liste ; Up / Down la parcourent et Back revient au
+timer.
+
+Le format persistant est versionné, sérialisé explicitement en little-endian et
+protégé par CRC-32. Une entrée occupe 20 octets. Une génération complète occupe
+au maximum trois valeurs Persist de 252, 252 et 172 octets. Les écritures alternent
+entre deux banques A/B : le premier chunk sert de commit, ce qui laisse la
+génération précédente intacte si la batterie s'épuise entre deux écritures.
+Au maximum, les deux banques et les cinq réglages occupent **1 372 octets**, sous
+le plancher de 4 096 octets disponible sur les plateformes les plus contraintes.
+Pebble limite chaque valeur Persist à 256 octets.
+
+### Configuration mobile et synchronisation
 
 Le manifeste déclare la capability `configurable`. Depuis la fiche Tick Every
 dans l'app mobile, **Configure** ouvre la page HTTPS statique
-`src/pkjs/config.html`. Elle propose English et Français, sans analytics,
-cookie ou script tiers. `src/pkjs/index.js` valide la réponse puis envoie la
-clé AppMessage `LANGUAGE` (`0` pour l'anglais, `1` pour le français).
+`src/pkjs/config.html`. Elle propose English, Français, le toggle de sauvegarde
+et l'historique, sans analytics, cookie ou script tiers. `src/pkjs/index.js`
+valide la réponse puis envoie `LANGUAGE` (`0` pour l'anglais, `1` pour le
+français), `SAVE_STATISTICS` et `HISTORY_REQUEST` par AppMessage.
 
 La montre valide à nouveau cette valeur, l'écrit sous `PERSIST_KEY_LANGUAGE`
 et redessine l'état courant. Une valeur absente, mal formée ou hors de 0/1 est
-refusée. Le timer continue de fonctionner sans téléphone ni réseau ; Internet
-est requis uniquement pour charger la page de configuration.
+refusée. La montre répond par un snapshot `HISTORY_DATA` versionné et protégé
+par CRC. PebbleKit JS conserve un miroir des 32 entrées dans son `localStorage`
+et le transmet à la page dans un fragment URL compact ; ce fragment n'est pas
+envoyé au serveur HTTP. La montre reste la source canonique et une nouvelle
+demande remplace le miroir du téléphone.
+
+Un snapshot complet est envoyé en trois pages de 252, 252 et 172 octets au
+maximum, chacune protégée par CRC, dans un Outbox de 320 octets. L'Inbox de 124 octets couvre les
+trois entiers de réglage/requête. Un envoi occupé est coalescé puis relancé à la
+fin de l'envoi en cours ; PebbleKit JS retente trois fois les réglages sur un
+échec temporaire. Le timer et l'historique montre continuent de fonctionner
+sans téléphone ni réseau ; Internet est requis uniquement pour charger la page
+de configuration.
 
 ### Interface et mémoire
 
@@ -122,13 +164,15 @@ s'adaptent aussi à la définition d'emery.
 Pour rester compatible avec le heap utile limité d'aplite — environ 24 Ko,
 contre 64 Ko ou plus sur basalt et les plateformes suivantes — l'app utilise
 une seule `Window`, un seul `Layer` personnalisé, deux `AppTimer` au maximum et
-des buffers statiques. Les timers sont annulés et le layer détruit dans
+des buffers statiques. L'historique utilise environ 1,4 Ko de buffers statiques
+et AppMessage réserve 444 octets de heap. Les timers sont annulés et le layer détruit dans
 `window_unload`; les vibrations, le tick service et la fenêtre sont libérés
 dans `deinit`.
 
 ## Tests automatiques
 
-La logique indépendante du SDK est dans `src/c/timer_logic.c`. Sa suite hôte
+La logique indépendante du SDK est dans `src/c/timer_logic.c` et
+`src/c/session_history.c`. Sa suite hôte
 couvre la grille du timer et ses seuils de pas, les délais, les exemples de
 codes haptiques, les cycles sans clamp final, les réveils tardifs, les phases
 exactes en millisecondes et les bornes d'overflow.
@@ -139,8 +183,9 @@ pebble build
 ```
 
 `tests/run.sh` compile la logique portable en C99 avec
-`-Wall -Wextra -Werror -pedantic`, exécute ses 19 146 assertions, puis teste en
-Node la validation, la persistance et le retry de la langue côté PebbleKit JS.
+`-Wall -Wextra -Werror -pedantic`, exécute plus de 19 200 assertions, puis teste
+en Node la validation des réglages, le CRC et le décodage de l'historique, le
+miroir local, le format URL compact et les retries côté PebbleKit JS.
 `pebble build` compile la watchapp pour toutes les plateformes déclarées et
 produit `build/tick-every.pbw`.
 
@@ -181,7 +226,13 @@ Tester au minimum ces scénarios :
    toggle haptique et de la langue ;
 9. depuis **Configure** dans l'app mobile, tester English → Français → English,
    vérifier le changement immédiat et la persistance après relance ;
-10. contrôler le rendu sur basalt, chalk et aplite au minimum.
+10. activer les statistiques depuis **Configure**, arrêter une session active,
+    puis vérifier l'entrée sur la montre et dans la page mobile ;
+11. désactiver les statistiques et vérifier qu'une nouvelle session n'est pas
+    ajoutée, sans effacer les entrées existantes ;
+12. remplir 32 entrées, ajouter une 33e et vérifier l'éviction de la plus
+    ancienne ;
+13. contrôler le rendu sur basalt, chalk et aplite au minimum.
 
 Lors des vibrations, l'émulateur peut écrire des warnings de la forme
 `PHONESIM ... QemuInboundPacket.footer`. Ils viennent de la simulation QEMU et

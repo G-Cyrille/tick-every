@@ -1,6 +1,7 @@
 #include <pebble.h>
 #include <message_keys.auto.h>
 
+#include "session_history.h"
 #include "timer_logic.h"
 
 /* Key 1 stored the retired finite duration; key 4 stores the repeat interval. */
@@ -8,11 +9,15 @@
 #define PERSIST_KEY_DELAY 2
 #define PERSIST_KEY_HAPTICS 3
 #define PERSIST_KEY_LANGUAGE 5
+#define PERSIST_KEY_STATISTICS_ENABLED 6
+#define PERSIST_KEY_HISTORY_A_FIRST 100
+#define PERSIST_KEY_HISTORY_B_FIRST 110
 
 #define DEFAULT_TIMER_SECONDS 5U
 #define DEFAULT_DELAY_SECONDS 0U
 #define DEFAULT_HAPTICS_ENABLED true
 #define DEFAULT_LANGUAGE LANGUAGE_ENGLISH
+#define DEFAULT_STATISTICS_ENABLED false
 
 #define LONG_PRESS_MS 700U
 #define ANIMATION_STEP_MS 70U
@@ -33,7 +38,8 @@ typedef enum {
   APP_STATE_WAITING,
   APP_STATE_RUNNING,
   APP_STATE_PAUSED,
-  APP_STATE_STOP_CONFIRM
+  APP_STATE_STOP_CONFIRM,
+  APP_STATE_HISTORY
 } AppState;
 
 typedef enum {
@@ -65,10 +71,25 @@ static unsigned int s_animation_frame;
 static unsigned int s_timer_seconds = DEFAULT_TIMER_SECONDS;
 static unsigned int s_delay_seconds = DEFAULT_DELAY_SECONDS;
 static bool s_haptics_enabled = DEFAULT_HAPTICS_ENABLED;
+static bool s_statistics_enabled = DEFAULT_STATISTICS_ENABLED;
 static Language s_language = DEFAULT_LANGUAGE;
 static unsigned int s_elapsed_seconds;
 static uint64_t s_cycle;
 static bool s_haptic_limit_logged;
+static TickHistory s_history;
+static uint8_t s_history_bank;
+static unsigned int s_history_offset;
+static bool s_session_active_started;
+static bool s_statistics_enabled_at_session_start;
+static bool s_stop_snapshot_valid;
+static bool s_history_send_pending;
+static bool s_history_send_in_flight;
+static unsigned int s_history_send_chunk;
+static uint8_t s_history_send_generation;
+static WallClockTime s_session_started_at;
+static WallClockTime s_stop_snapshot_at;
+static uint64_t s_stop_snapshot_active_ms;
+static uint64_t s_stop_snapshot_cycle;
 
 /* A running segment starts after each resume; exact prior elapsed is preserved. */
 static WallClockTime s_wait_started_at;
@@ -77,6 +98,8 @@ static uint64_t s_elapsed_before_segment_ms;
 
 /* Pebble consumes custom patterns asynchronously, so storage must outlive calls. */
 static uint32_t s_haptic_durations[HAPTIC_SEGMENT_CAPACITY];
+static uint8_t s_history_chunks[TICK_HISTORY_CHUNK_COUNT]
+                               [PERSIST_DATA_MAX_LENGTH];
 
 static void prv_runtime_timer_callback(void *context);
 static void prv_reconcile_runtime(void);
@@ -92,6 +115,7 @@ static const char *prv_state_name(AppState state) {
     case APP_STATE_RUNNING: return "running";
     case APP_STATE_PAUSED: return "paused";
     case APP_STATE_STOP_CONFIRM: return "stop-confirm";
+    case APP_STATE_HISTORY: return "history";
   }
   return "unknown";
 }
@@ -185,6 +209,116 @@ static void prv_persist_int_checked(int key, int value, const char *name) {
   }
 }
 
+/* Writes a complete generation into the inactive A/B bank, first chunk last. */
+static bool prv_persist_history(void) {
+  const uint8_t target_bank = (uint8_t)(s_history_bank ^ 1U);
+  const int bank_first_key = target_bank == 0U
+      ? PERSIST_KEY_HISTORY_A_FIRST : PERSIST_KEY_HISTORY_B_FIRST;
+  size_t chunk_sizes[TICK_HISTORY_CHUNK_COUNT];
+  unsigned int chunk;
+  int result;
+
+  for (chunk = 0U; chunk < TICK_HISTORY_CHUNK_COUNT; ++chunk) {
+    chunk_sizes[chunk] = tick_history_encode_chunk(
+        &s_history, chunk, s_history_chunks[chunk],
+        sizeof(s_history_chunks[chunk]));
+    if (chunk == 0U && chunk_sizes[chunk] == 0U) {
+      APP_LOG(APP_LOG_LEVEL_ERROR, "Failed to encode history commit chunk");
+      return false;
+    }
+  }
+
+  for (chunk = TICK_HISTORY_CHUNK_COUNT - 1U; chunk > 0U; --chunk) {
+    if (chunk_sizes[chunk] == 0U) {
+      continue;
+    }
+    result = persist_write_data(bank_first_key + (int)chunk,
+                                s_history_chunks[chunk], chunk_sizes[chunk]);
+    if (result != (int)chunk_sizes[chunk]) {
+      APP_LOG(APP_LOG_LEVEL_ERROR,
+              "Failed to persist history chunk %u: %d", chunk, result);
+      return false;
+    }
+  }
+
+  result = persist_write_data(bank_first_key, s_history_chunks[0],
+                              chunk_sizes[0]);
+  if (result != (int)chunk_sizes[0]) {
+    APP_LOG(APP_LOG_LEVEL_ERROR,
+            "Failed to persist history commit chunk: %d", result);
+    return false;
+  }
+
+  s_history_bank = target_bank;
+  for (chunk = 1U; chunk < TICK_HISTORY_CHUNK_COUNT; ++chunk) {
+    const int key = bank_first_key + (int)chunk;
+    if (chunk_sizes[chunk] == 0U && persist_exists(key)) {
+      result = persist_delete(key);
+      if (result < 0) {
+        APP_LOG(APP_LOG_LEVEL_ERROR,
+                "Failed to delete unused history chunk %u: %d",
+                chunk, result);
+      }
+    }
+  }
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "History persisted: count=%u generation=%u",
+          s_history.count, s_history.generation);
+  return true;
+}
+
+/* Loads one committed A/B bank without changing the active in-memory history. */
+static bool prv_load_history_bank(int first_key, TickHistory *history) {
+  const uint8_t *chunks[TICK_HISTORY_CHUNK_COUNT];
+  size_t sizes[TICK_HISTORY_CHUNK_COUNT];
+  unsigned int chunk;
+
+  if (!persist_exists(first_key)) {
+    return false;
+  }
+  for (chunk = 0U; chunk < TICK_HISTORY_CHUNK_COUNT; ++chunk) {
+    const int key = first_key + (int)chunk;
+    chunks[chunk] = NULL;
+    sizes[chunk] = 0U;
+    if (persist_exists(key)) {
+      const int size = persist_read_data(key, s_history_chunks[chunk],
+                                         sizeof(s_history_chunks[chunk]));
+      if (size < 0) {
+        return false;
+      }
+      chunks[chunk] = s_history_chunks[chunk];
+      sizes[chunk] = (size_t)size;
+    }
+  }
+  return tick_history_decode_chunks(chunks, sizes, history);
+}
+
+/* Selects the newest complete generation and ignores a torn inactive bank. */
+static void prv_load_history(void) {
+  TickHistory history_b;
+  const bool valid_a = prv_load_history_bank(PERSIST_KEY_HISTORY_A_FIRST,
+                                              &s_history);
+  const bool valid_b = prv_load_history_bank(PERSIST_KEY_HISTORY_B_FIRST,
+                                              &history_b);
+
+  if (!valid_a && !valid_b) {
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "No valid history bank; creating empty A");
+    tick_history_init(&s_history);
+    s_history_bank = 1U;
+    prv_persist_history();
+    return;
+  }
+  if (valid_b && (!valid_a || tick_history_generation_is_newer(
+                                  history_b.generation,
+                                  s_history.generation))) {
+    s_history = history_b;
+    s_history_bank = 1U;
+  } else if (valid_a) {
+    s_history_bank = 0U;
+  }
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "History loaded: count=%u generation=%u",
+          s_history.count, s_history.generation);
+}
+
 /* Loads settings and repairs missing or corrupt persisted values with defaults. */
 static void prv_load_settings(void) {
   int value;
@@ -251,10 +385,27 @@ static void prv_load_settings(void) {
                             "language");
   }
 
+  if (persist_exists(PERSIST_KEY_STATISTICS_ENABLED)) {
+    value = persist_read_int(PERSIST_KEY_STATISTICS_ENABLED);
+    if (value == 0 || value == 1) {
+      s_statistics_enabled = value == 1;
+    } else {
+      APP_LOG(APP_LOG_LEVEL_ERROR,
+              "Invalid persisted statistics toggle: %d", value);
+      s_statistics_enabled = DEFAULT_STATISTICS_ENABLED;
+      prv_persist_int_checked(PERSIST_KEY_STATISTICS_ENABLED,
+                              s_statistics_enabled ? 1 : 0, "statistics");
+    }
+  } else {
+    s_statistics_enabled = DEFAULT_STATISTICS_ENABLED;
+    prv_persist_int_checked(PERSIST_KEY_STATISTICS_ENABLED,
+                            s_statistics_enabled ? 1 : 0, "statistics");
+  }
+
   APP_LOG(APP_LOG_LEVEL_DEBUG,
-          "Settings loaded: timer=%u delay=%u haptics=%d language=%d",
+          "Settings loaded: timer=%u delay=%u haptics=%d language=%d stats=%d",
           s_timer_seconds, s_delay_seconds, s_haptics_enabled ? 1 : 0,
-          (int)s_language);
+          (int)s_language, s_statistics_enabled ? 1 : 0);
 }
 
 /* Formats elapsed or configured time compactly for every display size. */
@@ -352,6 +503,107 @@ static uint64_t prv_time_elapsed_ms(WallClockTime start, WallClockTime end) {
     milliseconds += 1000;
   }
   return (uint64_t)seconds * 1000U + (uint32_t)milliseconds;
+}
+
+/* Saturates the unbounded runtime counters to the 136-year history fields. */
+static uint32_t prv_u64_to_u32(uint64_t value) {
+  return value > UINT32_MAX ? UINT32_MAX : (uint32_t)value;
+}
+
+/* Tries one queued full snapshot; a busy outbox is retried after its callback. */
+static void prv_try_send_history(void) {
+  DictionaryIterator *iterator;
+  DictionaryResult dictionary_result;
+  AppMessageResult message_result;
+  size_t wire_size;
+
+  if (!s_history_send_pending || s_history_send_in_flight) {
+    return;
+  }
+  if (s_history_send_chunk == 0U ||
+      s_history_send_generation != s_history.generation) {
+    s_history_send_chunk = 0U;
+    s_history_send_generation = s_history.generation;
+  }
+  wire_size = tick_history_encode_chunk(
+      &s_history, s_history_send_chunk,
+      s_history_chunks[s_history_send_chunk],
+      sizeof(s_history_chunks[s_history_send_chunk]));
+  if (wire_size == 0U) {
+    APP_LOG(APP_LOG_LEVEL_ERROR, "Failed to encode history page %u",
+            s_history_send_chunk);
+    return;
+  }
+  message_result = app_message_outbox_begin(&iterator);
+  if (message_result != APP_MSG_OK || iterator == NULL) {
+    APP_LOG(APP_LOG_LEVEL_ERROR, "History outbox unavailable: %d",
+            (int)message_result);
+    return;
+  }
+  dictionary_result = dict_write_data(iterator, MESSAGE_KEY_HISTORY_DATA,
+                                      s_history_chunks[s_history_send_chunk],
+                                      wire_size);
+  if (dictionary_result != DICT_OK) {
+    APP_LOG(APP_LOG_LEVEL_ERROR, "Failed to write history tuple: %d",
+            (int)dictionary_result);
+    return;
+  }
+  message_result = app_message_outbox_send();
+  if (message_result != APP_MSG_OK) {
+    APP_LOG(APP_LOG_LEVEL_ERROR, "Failed to send history: %d",
+            (int)message_result);
+    return;
+  }
+  s_history_send_pending = false;
+  s_history_send_in_flight = true;
+}
+
+/* Coalesces save/request events into at most one additional full snapshot. */
+static void prv_request_history_send(void) {
+  s_history_send_pending = true;
+  prv_try_send_history();
+}
+
+/* Persists the stop snapshot only for an active, explicitly stopped session. */
+static void prv_save_stop_snapshot(void) {
+  TickSession session;
+  uint64_t total_ms;
+  uint32_t active_seconds;
+  uint32_t total_seconds;
+
+  if (!s_statistics_enabled_at_session_start || !s_statistics_enabled ||
+      !s_session_active_started ||
+      !s_stop_snapshot_valid || s_stop_snapshot_at.seconds <= 0) {
+    return;
+  }
+
+  total_ms = prv_time_elapsed_ms(s_session_started_at, s_stop_snapshot_at);
+  active_seconds = prv_u64_to_u32(s_stop_snapshot_active_ms / 1000U);
+  total_seconds = prv_u64_to_u32(total_ms / 1000U);
+  if (total_seconds < active_seconds) {
+    total_seconds = active_seconds;
+  }
+
+  session.ended_at = prv_u64_to_u32((uint64_t)s_stop_snapshot_at.seconds);
+  session.total_duration_seconds = total_seconds;
+  session.active_duration_seconds = active_seconds;
+  session.cycles = prv_u64_to_u32(s_stop_snapshot_cycle);
+  session.interval_seconds = (uint16_t)s_timer_seconds;
+  session.delay_seconds = (uint8_t)s_delay_seconds;
+  session.flags = s_haptics_enabled ? TICK_SESSION_FLAG_HAPTICS : 0U;
+
+  if (!tick_history_add(&s_history, &session)) {
+    APP_LOG(APP_LOG_LEVEL_ERROR, "Rejected completed session history record");
+    return;
+  }
+  APP_LOG(APP_LOG_LEVEL_DEBUG,
+          "Session saved: total=%lu active=%lu cycles=%lu count=%u",
+          (unsigned long)session.total_duration_seconds,
+          (unsigned long)session.active_duration_seconds,
+          (unsigned long)session.cycles, s_history.count);
+  if (prv_persist_history()) {
+    prv_request_history_send();
+  }
 }
 
 /* Computes exact active elapsed time while excluding all time spent paused. */
@@ -497,6 +749,7 @@ static void prv_begin_active_timer(WallClockTime logical_start) {
   s_elapsed_seconds = 0U;
   s_cycle = 0U;
   s_run_segment_started_at = logical_start;
+  s_session_active_started = true;
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Timer active start");
   prv_set_state(APP_STATE_RUNNING);
   vibes_double_pulse();
@@ -514,6 +767,10 @@ static void prv_start_timer(void) {
   s_elapsed_before_segment_ms = 0U;
   s_cycle = 0U;
   s_haptic_limit_logged = false;
+  s_session_started_at = now;
+  s_session_active_started = false;
+  s_statistics_enabled_at_session_start = s_statistics_enabled;
+  s_stop_snapshot_valid = false;
 
   APP_LOG(APP_LOG_LEVEL_DEBUG,
           "Repeating timer start requested: timer=%u delay=%u",
@@ -557,9 +814,51 @@ static void prv_resume_timer(void) {
 
 /* Opens the explicit stop guard and remembers which state Back should restore. */
 static void prv_ask_to_stop(void) {
+  const WallClockTime now = prv_now();
+
+  if (s_state == APP_STATE_WAITING) {
+    const uint32_t delay_ms = s_delay_seconds * 1000U;
+    if (prv_time_elapsed_ms(s_wait_started_at, now) >= delay_ms) {
+      s_run_segment_started_at = prv_time_add_ms(s_wait_started_at, delay_ms);
+      s_elapsed_before_segment_ms = 0U;
+      s_session_active_started = true;
+      prv_set_state(APP_STATE_RUNNING);
+    }
+  }
   s_state_before_stop_confirm = s_state;
+  s_stop_snapshot_valid = false;
+
+  if (s_state == APP_STATE_RUNNING) {
+    prv_update_running_timer(now);
+    s_elapsed_before_segment_ms = prv_current_elapsed_ms(now);
+    s_elapsed_seconds = tick_elapsed_seconds_from_ms(
+        s_elapsed_before_segment_ms);
+  }
+  if (s_state == APP_STATE_RUNNING || s_state == APP_STATE_PAUSED) {
+    s_stop_snapshot_at = now;
+    s_stop_snapshot_active_ms = s_elapsed_before_segment_ms;
+    s_stop_snapshot_cycle = tick_cycles_reached_ms(
+        s_stop_snapshot_active_ms, s_timer_seconds);
+    s_cycle = s_stop_snapshot_cycle;
+    s_stop_snapshot_valid = s_session_active_started;
+  }
   prv_cancel_runtime_timer();
   prv_set_state(APP_STATE_STOP_CONFIRM);
+}
+
+/* Cancels the guard while excluding confirmation time from active duration. */
+static void prv_cancel_stop(void) {
+  const AppState restored_state = s_state_before_stop_confirm;
+  s_stop_snapshot_valid = false;
+
+  if (restored_state == APP_STATE_RUNNING) {
+    s_run_segment_started_at = prv_now();
+    prv_set_state(APP_STATE_RUNNING);
+    prv_schedule_runtime_timer();
+  } else {
+    prv_set_state(restored_state);
+    prv_reconcile_runtime();
+  }
 }
 
 /* Stops without changing the persisted configuration. */
@@ -569,10 +868,13 @@ static void prv_confirm_stop(void) {
   prv_cancel_runtime_timer();
   vibes_cancel();
   prv_cancel_animation();
+  prv_save_stop_snapshot();
   s_elapsed_seconds = 0U;
   s_elapsed_before_segment_ms = 0U;
   s_cycle = 0U;
   s_haptic_limit_logged = false;
+  s_session_active_started = false;
+  s_stop_snapshot_valid = false;
   prv_set_state(APP_STATE_READY);
 }
 
@@ -707,6 +1009,144 @@ static void prv_draw_actions(GContext *ctx, GRect bounds, int16_t y,
   }
 }
 
+/* Formats one local end date without depending on the watch locale. */
+static void prv_format_history_date(uint32_t ended_at, char *buffer,
+                                    size_t buffer_size) {
+  const time_t timestamp = (time_t)ended_at;
+  const struct tm *local = localtime(&timestamp);
+  if (local == NULL) {
+    snprintf(buffer, buffer_size, "--/-- --:--");
+    return;
+  }
+  snprintf(buffer, buffer_size, "%02u/%02u %02u:%02u",
+           (unsigned int)local->tm_mday % 100U,
+           (unsigned int)(local->tm_mon + 1) % 100U,
+           (unsigned int)local->tm_hour % 100U,
+           (unsigned int)local->tm_min % 100U);
+}
+
+/* Draws the newest-first history as one compact scrollable list. */
+static void prv_draw_history(GContext *ctx, GRect bounds) {
+  const bool round = PBL_IF_ROUND_ELSE(true, false);
+  const bool tall = bounds.size.h >= 200;
+  const unsigned int visible_rows = tall ? 4U : 3U;
+  const int16_t margin = round ? (bounds.size.w >= 200 ? 29 : 22) : 4;
+  const int16_t band_margin = round ? (bounds.size.w >= 200 ? 42 : 34) : 4;
+  const int16_t band_y = round ? (tall ? 18 : 14) : 0;
+  const int16_t band_height = 27;
+  const int16_t content_top = band_y + band_height + 5;
+  const int16_t footer_height = round ? 26 : 22;
+  const int16_t footer_y = bounds.size.h - footer_height;
+  const int16_t footer_margin = round ? (tall ? 50 : 42) : margin;
+  const int16_t row_height = (footer_y - content_top) / (int16_t)visible_rows;
+  const GFont title_font = fonts_get_system_font(
+      round && !tall ? FONT_KEY_GOTHIC_14_BOLD : FONT_KEY_GOTHIC_18_BOLD);
+  const GFont date_font = fonts_get_system_font(
+      round && !tall ? FONT_KEY_GOTHIC_14_BOLD : FONT_KEY_GOTHIC_18_BOLD);
+  const GFont detail_font = fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD);
+  char position[16];
+  unsigned int row;
+
+  graphics_context_set_fill_color(ctx, GColorWhite);
+  graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+  if (s_history.count == 0U) {
+    position[0] = '\0';
+  } else {
+    snprintf(position, sizeof(position), "%u-%u/%u", s_history_offset + 1U,
+             s_history_offset + visible_rows < s_history.count
+                 ? s_history_offset + visible_rows : s_history.count,
+             s_history.count);
+  }
+  prv_draw_state_band(
+      ctx, GRect(band_margin, band_y, bounds.size.w - band_margin * 2,
+                 band_height),
+      prv_text("HISTORY", "HISTORIQUE"), position,
+      PBL_IF_COLOR_ELSE(GColorPictonBlue, GColorBlack),
+      PBL_IF_COLOR_ELSE(GColorBlack, GColorWhite), title_font);
+
+  if (s_history.count == 0U) {
+    const char *empty = prv_text("NO SAVED SESSIONS", "AUCUNE SESSION");
+    const char *status = s_statistics_enabled
+        ? prv_text("SAVING IS ON", "SAUVEGARDE ACTIVE")
+        : prv_text("SAVING IS OFF", "SAUVEGARDE COUPÉE");
+    prv_draw_text(ctx, empty,
+                  fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
+                  GRect(margin, content_top + 20,
+                        bounds.size.w - margin * 2, 28),
+                  GTextAlignmentCenter, GColorBlack);
+    prv_draw_text(ctx, status, detail_font,
+                  GRect(margin, content_top + 48,
+                        bounds.size.w - margin * 2, 24),
+                  GTextAlignmentCenter, GColorBlack);
+  } else {
+    for (row = 0U; row < visible_rows; ++row) {
+      const unsigned int index = s_history_offset + row;
+      GRect row_rect;
+      char date_text[20];
+      char duration_text[16];
+      char detail_text[40];
+      const TickSession *session;
+
+      if (index >= s_history.count) {
+        break;
+      }
+      session = &s_history.sessions[index];
+      row_rect = GRect(margin, content_top + (int16_t)row * row_height,
+                       bounds.size.w - margin * 2, row_height - 2);
+      graphics_context_set_fill_color(
+          ctx, PBL_IF_COLOR_ELSE(row % 2U == 0U ? GColorLightGray
+                                                : GColorWhite,
+                                GColorWhite));
+      graphics_fill_rect(ctx, row_rect, 5, GCornersAll);
+      graphics_context_set_stroke_color(ctx, GColorBlack);
+      graphics_draw_round_rect(ctx, row_rect, 5);
+      graphics_context_set_fill_color(
+          ctx, PBL_IF_COLOR_ELSE(row % 2U == 0U ? GColorJaegerGreen
+                                                : GColorPictonBlue,
+                                GColorBlack));
+      graphics_fill_rect(ctx,
+                         GRect(row_rect.origin.x, row_rect.origin.y, 4,
+                               row_rect.size.h),
+                         2, GCornersLeft);
+
+      prv_format_history_date(session->ended_at, date_text,
+                              sizeof(date_text));
+      prv_format_time(session->total_duration_seconds, duration_text,
+                      sizeof(duration_text));
+      snprintf(detail_text, sizeof(detail_text), "%s · %luC · %us",
+               duration_text, (unsigned long)session->cycles,
+               session->interval_seconds);
+      prv_draw_text(ctx, date_text, date_font,
+                    GRect(row_rect.origin.x + 8, row_rect.origin.y - 1,
+                          row_rect.size.w - 12, row_rect.size.h / 2 + 3),
+                    GTextAlignmentLeft, GColorBlack);
+      prv_draw_text(ctx, detail_text, detail_font,
+                    GRect(row_rect.origin.x + 8,
+                          row_rect.origin.y + row_rect.size.h / 2 - 3,
+                          row_rect.size.w - 12, row_rect.size.h / 2 + 2),
+                    GTextAlignmentLeft, GColorBlack);
+    }
+  }
+
+  graphics_context_set_fill_color(
+      ctx, PBL_IF_COLOR_ELSE(GColorLightGray, GColorWhite));
+  graphics_fill_rect(ctx, GRect(footer_margin, footer_y,
+                                bounds.size.w - footer_margin * 2,
+                                footer_height),
+                     round ? 6 : 0, round ? GCornersAll : GCornerNone);
+  graphics_context_set_stroke_color(ctx, GColorBlack);
+  graphics_draw_round_rect(ctx, GRect(footer_margin, footer_y,
+                                      bounds.size.w - footer_margin * 2,
+                                      footer_height), round ? 6 : 0);
+  prv_draw_text(ctx,
+                round ? prv_text("UP/DN · BACK", "H/B · BACK")
+                      : prv_text("UP/DOWN · BACK", "HAUT/BAS · BACK"),
+                detail_font,
+                GRect(footer_margin + 2, footer_y,
+                      bounds.size.w - footer_margin * 2 - 4, footer_height),
+                GTextAlignmentCenter, GColorBlack);
+}
+
 /* Renders the complete interface on one lightweight platform-adaptive layer. */
 static void prv_canvas_update_proc(Layer *layer, GContext *ctx) {
   const GRect bounds = layer_get_bounds(layer);
@@ -765,13 +1205,18 @@ static void prv_canvas_update_proc(Layer *layer, GContext *ctx) {
   graphics_context_set_fill_color(ctx, background);
   graphics_fill_rect(ctx, bounds, 0, GCornerNone);
 
+  if (s_state == APP_STATE_HISTORY) {
+    prv_draw_history(ctx, bounds);
+    return;
+  }
+
   snprintf(state_text, sizeof(state_text), "TIMER");
   snprintf(step_text, sizeof(step_text), "1/4");
   prv_format_time(s_timer_seconds, value_text, sizeof(value_text));
   snprintf(info_first, sizeof(info_first), "%s",
            prv_text("INTERVAL", "INTERVALLE"));
   snprintf(info_second, sizeof(info_second), "%s",
-           prv_text("REPEATS FOREVER", "SANS FIN"));
+           prv_text("HOLD = HISTORY", "TENIR = HIST."));
   snprintf(first_action, sizeof(first_action), "%s",
            prv_text("UP/DOWN SET", "HAUT/BAS RÉGLER"));
   snprintf(second_action, sizeof(second_action), "%s",
@@ -912,6 +1357,9 @@ static void prv_canvas_update_proc(Layer *layer, GContext *ctx) {
       band_background = PBL_IF_COLOR_ELSE(GColorRed, GColorBlack);
       band_foreground = PBL_IF_COLOR_ELSE(GColorBlack, GColorWhite);
       break;
+    case APP_STATE_HISTORY:
+      /* Rendered by the early history branch above. */
+      break;
   }
 
   /* Round screens use the center as a dial and keep button labels short. */
@@ -919,7 +1367,7 @@ static void prv_canvas_update_proc(Layer *layer, GContext *ctx) {
     switch (s_state) {
       case APP_STATE_SET_TIMER:
         snprintf(info_first, sizeof(info_first), "%s",
-                 prv_text("REPEATS FOREVER", "RÉPÈTE SANS FIN"));
+                 prv_text("HOLD = HISTORY", "TENIR = HIST."));
         snprintf(first_action, sizeof(first_action), "%s",
                  prv_text("UP/DOWN", "HAUT/BAS"));
         snprintf(second_action, sizeof(second_action), "%s",
@@ -1021,6 +1469,9 @@ static void prv_canvas_update_proc(Layer *layer, GContext *ctx) {
         snprintf(second_action, sizeof(second_action), "%s",
                  prv_text("NO", "NON"));
         break;
+      case APP_STATE_HISTORY:
+        /* Rendered by the early history branch above. */
+        break;
     }
     info_second[0] = '\0';
   }
@@ -1074,15 +1525,19 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer,
       prv_confirm_stop();
       break;
     case APP_STATE_WAITING:
+    case APP_STATE_HISTORY:
       break;
   }
 }
 
-/* A deliberate long press starts only from the ready screen. */
+/* A deliberate long press starts the timer or opens first-screen history. */
 static void prv_select_long_click_handler(ClickRecognizerRef recognizer,
                                           void *context) {
   if (s_state == APP_STATE_READY) {
     prv_start_timer();
+  } else if (s_state == APP_STATE_SET_TIMER) {
+    s_history_offset = 0U;
+    prv_set_state(APP_STATE_HISTORY);
   }
 }
 
@@ -1099,6 +1554,9 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *context) {
   } else if (s_state == APP_STATE_SET_HAPTICS) {
     s_haptics_enabled = true;
     prv_persist_int_checked(PERSIST_KEY_HAPTICS, 1, "haptics");
+    prv_mark_dirty();
+  } else if (s_state == APP_STATE_HISTORY && s_history_offset > 0U) {
+    --s_history_offset;
     prv_mark_dirty();
   }
 }
@@ -1117,6 +1575,10 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer,
   } else if (s_state == APP_STATE_SET_HAPTICS) {
     s_haptics_enabled = false;
     prv_persist_int_checked(PERSIST_KEY_HAPTICS, 0, "haptics");
+    prv_mark_dirty();
+  } else if (s_state == APP_STATE_HISTORY &&
+             s_history_offset + 1U < s_history.count) {
+    ++s_history_offset;
     prv_mark_dirty();
   }
 }
@@ -1142,8 +1604,11 @@ static void prv_back_click_handler(ClickRecognizerRef recognizer, void *context)
       prv_ask_to_stop();
       break;
     case APP_STATE_STOP_CONFIRM:
-      prv_set_state(s_state_before_stop_confirm);
-      prv_reconcile_runtime();
+      prv_cancel_stop();
+      break;
+    case APP_STATE_HISTORY:
+      s_history_offset = 0U;
+      prv_set_state(APP_STATE_SET_TIMER);
       break;
   }
 }
@@ -1190,48 +1655,99 @@ static void prv_tick_handler(struct tm *tick_time, TimeUnits units_changed) {
   prv_reconcile_runtime();
 }
 
-/* Applies validated settings received from the mobile configuration page. */
+/* Reads the two integer tuple variants without accepting overflow or strings. */
+static bool prv_tuple_to_int32(const Tuple *tuple, int32_t *value) {
+  if (tuple == NULL || value == NULL) {
+    return false;
+  }
+  if (tuple->type == TUPLE_INT) {
+    *value = tuple->value->int32;
+    return true;
+  }
+  if (tuple->type == TUPLE_UINT && tuple->value->uint32 <= INT32_MAX) {
+    *value = (int32_t)tuple->value->uint32;
+    return true;
+  }
+  return false;
+}
+
+/* Applies settings and returns a fresh history snapshot when requested. */
 static void prv_inbox_received(DictionaryIterator *iterator, void *context) {
   Tuple *language_tuple = dict_find(iterator, MESSAGE_KEY_LANGUAGE);
-  if (!language_tuple) {
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "AppMessage received without language");
-    return;
-  }
+  Tuple *statistics_tuple = dict_find(iterator,
+                                      MESSAGE_KEY_SAVE_STATISTICS);
+  Tuple *history_request_tuple = dict_find(iterator,
+                                           MESSAGE_KEY_HISTORY_REQUEST);
+  int32_t value;
 
-  int32_t language_value;
-  if (language_tuple->type == TUPLE_INT) {
-    language_value = language_tuple->value->int32;
-  } else if (language_tuple->type == TUPLE_UINT) {
-    const uint32_t unsigned_value = language_tuple->value->uint32;
-    if (unsigned_value > LANGUAGE_FRENCH) {
-      APP_LOG(APP_LOG_LEVEL_ERROR, "Invalid unsigned AppMessage language: %lu",
-              (unsigned long)unsigned_value);
-      return;
+  if (language_tuple != NULL) {
+    if (!prv_tuple_to_int32(language_tuple, &value) ||
+        (value != LANGUAGE_ENGLISH && value != LANGUAGE_FRENCH)) {
+      APP_LOG(APP_LOG_LEVEL_ERROR, "Invalid AppMessage language tuple");
+    } else {
+      s_language = (Language)value;
+      prv_persist_int_checked(PERSIST_KEY_LANGUAGE, (int)s_language,
+                              "language");
+      APP_LOG(APP_LOG_LEVEL_DEBUG, "AppMessage language applied: %ld",
+              (long)value);
+      prv_mark_dirty();
     }
-    language_value = (int32_t)unsigned_value;
-  } else {
-    APP_LOG(APP_LOG_LEVEL_ERROR, "Invalid AppMessage language tuple type: %d",
-            (int)language_tuple->type);
-    return;
   }
 
-  if (language_value != LANGUAGE_ENGLISH &&
-      language_value != LANGUAGE_FRENCH) {
-    APP_LOG(APP_LOG_LEVEL_ERROR, "Invalid AppMessage language: %ld",
-            (long)language_value);
-    return;
+  if (statistics_tuple != NULL) {
+    if (!prv_tuple_to_int32(statistics_tuple, &value) ||
+        (value != 0 && value != 1)) {
+      APP_LOG(APP_LOG_LEVEL_ERROR,
+              "Invalid AppMessage statistics toggle tuple");
+    } else {
+      s_statistics_enabled = value == 1;
+      prv_persist_int_checked(PERSIST_KEY_STATISTICS_ENABLED,
+                              s_statistics_enabled ? 1 : 0, "statistics");
+      APP_LOG(APP_LOG_LEVEL_DEBUG, "Statistics saving applied: %d",
+              s_statistics_enabled ? 1 : 0);
+      prv_mark_dirty();
+    }
   }
 
-  s_language = (Language)language_value;
-  prv_persist_int_checked(PERSIST_KEY_LANGUAGE, (int)s_language, "language");
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "AppMessage language applied: %ld",
-          (long)language_value);
-  prv_mark_dirty();
+  if (history_request_tuple != NULL) {
+    if (!prv_tuple_to_int32(history_request_tuple, &value) || value != 1) {
+      APP_LOG(APP_LOG_LEVEL_ERROR, "Invalid history request tuple");
+    } else {
+      APP_LOG(APP_LOG_LEVEL_DEBUG, "History snapshot requested");
+      prv_request_history_send();
+    }
+  }
 }
 
 /* Reports transport failures while leaving the current language untouched. */
 static void prv_inbox_dropped(AppMessageResult reason, void *context) {
   APP_LOG(APP_LOG_LEVEL_ERROR, "AppMessage inbox dropped: %d", (int)reason);
+}
+
+/* Logs successful history/settings transport for emulator verification. */
+static void prv_outbox_sent(DictionaryIterator *iterator, void *context) {
+  s_history_send_in_flight = false;
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "History page sent: %u",
+          s_history_send_chunk);
+  if (s_history_send_generation != s_history.generation) {
+    s_history_send_chunk = 0U;
+    s_history_send_pending = true;
+  } else if (tick_history_chunk_size(&s_history,
+                                     s_history_send_chunk + 1U) > 0U) {
+    ++s_history_send_chunk;
+    s_history_send_pending = true;
+  } else {
+    s_history_send_chunk = 0U;
+  }
+  prv_try_send_history();
+}
+
+/* Keeps history local when the phone is absent; a later request resynchronizes. */
+static void prv_outbox_failed(DictionaryIterator *iterator,
+                              AppMessageResult reason, void *context) {
+  s_history_send_in_flight = false;
+  s_history_send_pending = true;
+  APP_LOG(APP_LOG_LEVEL_ERROR, "AppMessage outbox failed: %d", (int)reason);
 }
 
 /* Allocates the sole drawing layer using the platform's current bounds. */
@@ -1269,6 +1785,7 @@ static void prv_window_unload(Window *window) {
 static bool prv_init(void) {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Initializing Tick Every");
   prv_load_settings();
+  prv_load_history();
 
   s_window = window_create();
   if (!s_window) {
@@ -1284,7 +1801,9 @@ static bool prv_init(void) {
 
   app_message_register_inbox_received(prv_inbox_received);
   app_message_register_inbox_dropped(prv_inbox_dropped);
-  const AppMessageResult app_message_result = app_message_open(64, 64);
+  app_message_register_outbox_sent(prv_outbox_sent);
+  app_message_register_outbox_failed(prv_outbox_failed);
+  const AppMessageResult app_message_result = app_message_open(124, 320);
   if (app_message_result != APP_MSG_OK) {
     APP_LOG(APP_LOG_LEVEL_ERROR, "Failed to open AppMessage: %d",
             (int)app_message_result);

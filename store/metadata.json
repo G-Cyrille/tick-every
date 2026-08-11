@@ -1,7 +1,7 @@
 {
   "name": "Tick Every",
   "package": "tick-every",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "uuid": "0987ccfa-3f0c-4225-bea5-140db3a87514",
   "type": "watchapp",
   "category": "tools",
@@ -9,12 +9,13 @@
   "sourceUrl": "https://github.com/G-Cyrille/tick-every",
   "developerName": "G-Cyrille",
   "supportEmail": "oiawo.cir@gmail.com",
-  "privacyPolicyUrl": "https://s3.grossholtz.net/public/tick-every/2026/08/8c24be09-b7d3-4196-9fdc-d8825bff1c3c-privacy-policy.html",
-  "tutorialUrl": "https://s3.grossholtz.net/public/tick-every/2026/08/36a81484-bbc5-4fcc-965d-1c47f68a1bac-tutorial.html",
-  "releaseUrl": "https://s3.grossholtz.net/public/tick-every/2026/08/344ea515-8898-400c-a687-dfb7097a4be3-tick-every-v1.0.0.pbw",
+  "privacyPolicyUrl": "https://s3.grossholtz.net/public/tick-every/2026/08/30bee468-1093-4203-972f-96b2819cd8c1-privacy-policy.html",
+  "tutorialUrl": "https://s3.grossholtz.net/public/tick-every/2026/08/88d97221-7c9c-4f1c-a9ca-43dd4b880220-tutorial.html",
+  "releaseUrl": "https://s3.grossholtz.net/public/tick-every/2026/08/85046a7c-1683-4a1f-9dd3-8229e9b8e840-tick-every-v1.1.0.pbw",
   "appStoreId": "f64d58f70cb8458390cd7749",
   "appStoreUrl": "https://apps.repebble.com/f64d58f70cb8458390cd7749",
-  "appStoreStatus": "published",
+  "appStoreStatus": "1.0.0 published; 1.1.0 not submitted",
+  "appStoreVersion": "1.0.0",
   "appStoreReleaseUrl": "https://appstore-api.repebble.com/api/assets/pbw/f64d58f70cb8458390cd7749/1.0.0/5e65c8ee-9d12-4ab5-bae0-1d7aa6df0089.pbw",
   "platforms": [
     "aplite",
@@ -31,6 +32,6 @@
     "banner": "store/assets/banner-720x320.png",
     "screenshots": "store/screenshots"
   },
-  "configurationUrl": "https://s3.grossholtz.net/public/tick-every/config/2026/08/ea2e99d6-723f-468a-90a2-a1d2a8a5400a-config.html",
-  "notes": "Published from Pebble Tool 5.0.39, which publishes immediately."
+  "configurationUrl": "https://s3.grossholtz.net/public/tick-every/config/2026/08/fcb3afc5-e97f-4602-bcbe-b8ff756a7508-config.html",
+  "notes": "Version 1.1.0 is prepared locally but not submitted. Pebble Tool 5.0.39 publishes immediately."
 }

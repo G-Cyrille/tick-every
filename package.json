@@ -3,7 +3,7 @@
   "description": "A repeating haptic timer that counts cycles on Pebble watches.",
   "author": "G-Cyrille",
   "license": "MIT",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "keywords": ["pebble-app"],
   "private": true,
   "dependencies": {},
@@ -28,7 +28,10 @@
       "configurable"
     ],
     "messageKeys": [
-      "LANGUAGE"
+      "LANGUAGE",
+      "SAVE_STATISTICS",
+      "HISTORY_REQUEST",
+      "HISTORY_DATA"
     ],
     "resources": {
       "media": [

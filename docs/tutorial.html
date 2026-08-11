@@ -343,7 +343,8 @@
       <ul>
         <li><a href="#principe">Principe</a></li>
         <li><a href="#boutons">Boutons</a></li>
-        <li><a href="#langue">Langue</a></li>
+        <li><a href="#langue">Réglages mobiles</a></li>
+        <li><a href="#historique">Historique</a></li>
         <li><a href="#regler">Régler</a></li>
         <li><a href="#exemple">Exemple D=10/X=5</a></li>
         <li><a href="#haptique">Code haptique</a></li>
@@ -377,7 +378,7 @@
         <h2>Les quatre boutons</h2>
         <div class="button-grid">
           <article class="card"><kbd>Up</kbd><h3>Augmenter</h3><p>Valeur suivante dans un réglage.</p></article>
-          <article class="card"><kbd>Select</kbd><h3>Valider</h3><p>Étape suivante, pause, reprise ou confirmation.</p></article>
+          <article class="card"><kbd>Select</kbd><h3>Valider</h3><p>Étape suivante, pause, reprise ou confirmation. Sur le premier écran, un appui long ouvre l’historique.</p></article>
           <article class="card"><kbd>Down</kbd><h3>Diminuer</h3><p>Valeur précédente dans un réglage.</p></article>
           <article class="card"><kbd>Back</kbd><h3>Revenir ou arrêter</h3><p>Étape précédente ; pendant l’exécution, ouvre la confirmation d’arrêt.</p></article>
         </div>
@@ -388,22 +389,39 @@
     <section id="langue">
       <div class="wrap language-layout">
         <div>
-          <h2>Changer la langue depuis le téléphone</h2>
-          <p class="intro">L’anglais est utilisé par défaut. Le choix de langue n’ajoute aucune étape sur la montre : il se trouve dans la page de configuration de l’app mobile Pebble.</p>
+          <h2>Langue et statistiques depuis le téléphone</h2>
+          <p class="intro">L’anglais est utilisé par défaut. La langue et la sauvegarde optionnelle des statistiques se trouvent dans la page de configuration de l’app mobile Pebble, sans ajouter d’étape au parcours de la montre.</p>
           <ol>
             <li>Ouvrez la fiche <strong>Tick Every</strong> dans l’app mobile Pebble.</li>
             <li>Choisissez <strong>Configure</strong>.</li>
-            <li>Sélectionnez <strong>English</strong> ou <strong>Français</strong>, puis <strong>Save · Enregistrer</strong>.</li>
+            <li>Sélectionnez <strong>English</strong> ou <strong>Français</strong>.</li>
+            <li>Activez <strong>Save session history</strong> si vous souhaitez conserver les sessions, puis choisissez <strong>Save · Enregistrer</strong>.</li>
           </ol>
-          <div class="callout"><p>La montre mémorise le choix et redessine immédiatement l’écran courant. Le timer fonctionne ensuite sans téléphone ni connexion Internet.</p></div>
+          <div class="callout"><p>La sauvegarde est désactivée par défaut. Les données restent sur la montre et dans le stockage local PebbleKit JS du téléphone ; elles ne sont pas envoyées au développeur.</p></div>
         </div>
         <div class="mobile-config" role="img" aria-label="Aperçu de la page mobile de choix de la langue, avec Français sélectionné">
           <h3>Tick Every · Settings</h3>
           <strong>Watch language</strong>
           <div class="mobile-choice"><span class="radio"></span><span><strong>English</strong><br><small>Default watch interface</small></span></div>
           <div class="mobile-choice selected"><span class="radio"></span><span><strong>Français</strong><br><small>Interface de la montre en français</small></span></div>
+          <strong>Session statistics</strong>
+          <div class="mobile-choice selected"><span class="radio"></span><span><strong>Save session history</strong><br><small>32 sessions maximum, stockage local</small></span></div>
           <div class="mobile-save">Save · Enregistrer</div>
         </div>
+      </div>
+    </section>
+
+    <section id="historique">
+      <div class="wrap">
+        <h2>Consulter l’historique</h2>
+        <p class="intro">Depuis le premier écran Timer, maintenez <strong>Select pendant 0,7 seconde</strong>. L’écran Historique affiche les sessions les plus récentes en premier. Utilisez Up et Down pour parcourir la liste, puis Back pour revenir.</p>
+        <div class="button-grid">
+          <article class="card"><h3>Date de fin</h3><p>Jour, mois et heure locale de l’arrêt confirmé.</p></article>
+          <article class="card"><h3>Durée totale</h3><p>Délai, temps actif et pauses depuis la demande de départ.</p></article>
+          <article class="card"><h3>Durée active</h3><p>Temps réellement compté par le timer, hors pauses.</p></article>
+          <article class="card"><h3>Contexte</h3><p>Cycles, intervalle, délai et état du code haptique.</p></article>
+        </div>
+        <div class="callout"><p>La montre garde les <strong>32 dernières sessions</strong>. La 33e remplace la plus ancienne. Un arrêt pendant le délai ou une fermeture sans arrêt confirmé n’ajoute rien. Désactiver la sauvegarde stoppe les nouvelles entrées sans effacer les anciennes.</p></div>
       </div>
     </section>
 
@@ -618,7 +636,8 @@
         <details><summary>Quand arrive le premier cycle ?</summary><p>Un intervalle complet après le démarrage effectif, donc à D + X. Avec D = 10 s et X = 5 s, il arrive à t = 15 s.</p></details>
         <details><summary>Pourquoi un cycle n’a-t-il parfois pas vibré ?</summary><p>Son motif pouvait être trop long pour la capacité matérielle ou pour finir avant le cycle suivant. L’exécution continue et les numéros restent justes.</p></details>
         <details><summary>Comment reconnaître le cycle 34 ?</summary><p>Trois vibrations longues pour les dizaines, puis quatre courtes pour les unités.</p></details>
-        <details><summary>Où changer la langue ?</summary><p>Dans l’app mobile Pebble : ouvrez Tick Every, choisissez Configure, sélectionnez English ou Français, puis enregistrez. Il n’existe pas d’étape de langue sur la montre.</p></details>
+        <details><summary>Où changer la langue ou activer l’historique ?</summary><p>Dans l’app mobile Pebble : ouvrez Tick Every, choisissez Configure, réglez la langue et le toggle Save session history, puis enregistrez.</p></details>
+        <details><summary>Où sont stockées les statistiques ?</summary><p>La montre est la source principale et conserve 32 sessions. PebbleKit JS en garde un miroir local sur le téléphone pour la page Configure. Aucun historique n’est envoyé à Tick Every, au développeur ou à un service cloud.</p></details>
       </div>
     </section>
   </main>

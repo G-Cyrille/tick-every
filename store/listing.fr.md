@@ -18,6 +18,8 @@ Fonctionnalités :
 - délai de démarrage optionnel ;
 - compteur de cycles haptique désactivable ;
 - pause, reprise et arrêt rapide ;
+- historique local optionnel des 32 dernières sessions terminées ;
+- historique consultable sur la montre et depuis « Configure » dans l'app Pebble ;
 - timer entièrement hors ligne après installation ;
 - anglais par défaut, français depuis « Configure » dans l’app mobile Pebble ;
 - compatible avec les écrans rectangulaires, ronds, couleur et noir et blanc.
@@ -30,4 +32,4 @@ Tools & Utilities (`tools` dans la CLI)
 
 ## Mots-clés suggérés
 
-timer, interval, haptic, vibration, repeating, counter
+timer, interval, haptic, vibration, repeating, counter, historique
