@@ -17,6 +17,14 @@
 
 ## News
 
+### 2026-08-11 — Mobile archive and clearer haptics
+
+The watch still keeps its 32 latest sessions, while the phone now merges them
+into a local archive with no app-imposed session limit. Configure displays the
+archive in pages of 32. Long vibrations now represent groups of five cycles,
+and the quiet gap between pulses is longer so three or four short pulses remain
+easy to distinguish.
+
 ### 2026-08-11 — Optional session history / Historique optionnel
 
 Tick Every 1.1.0 adds an opt-in, local-only history of the 32 latest completed
@@ -42,7 +50,9 @@ There is no Tick Every account, analytics or advertising. The timer itself
 runs entirely on the watch and does not need a phone or Internet connection.
 English is the default interface language; French can be selected from
 **Configure** in the Pebble mobile app. The same page can opt in to a local
-history of the 32 most recent completed sessions and display it. Opening that
+session history and display it. The watch keeps the latest 32 sessions; the
+phone archives every session it successfully receives, without an app-imposed
+count limit. Opening that
 hosted settings page requires Internet access, but the settings, timer and
 watch history work offline afterwards.
 
@@ -56,8 +66,8 @@ Open **Configure** in the Pebble mobile app to change the watch language or
 enable **Save session history**. Statistics are disabled by default. When
 enabled before a session starts and still enabled when it stops, Tick Every
 saves its end date, total and active durations, cycle count, interval, delay
-and haptic setting. The watch is the canonical store; PebbleKit JS keeps a
-local phone mirror so the configuration page can show the same history.
+and haptic setting. PebbleKit JS merges each 32-session watch snapshot into a
+separate local phone archive, which Configure displays in pages of 32.
 
 For a 10-second delay and a 5-second interval:
 
@@ -70,9 +80,10 @@ For a 10-second delay and a 5-second interval:
 | 25 s | Cycle 3 — three short vibrations |
 | … | The timer continues until you stop it |
 
-Cycles 1–9 use the same number of short vibrations. From cycle 10 onward, long
-vibrations represent tens and short vibrations represent units: cycle 12 is
-**one long + two short**, and cycle 55 is **five long + five short**.
+Cycles 1–4 use the same number of short vibrations. From cycle 5 onward, each
+long vibration represents a group of five and short vibrations represent the
+remainder: cycle 7 is **one long + two short**, and cycle 12 is **two long +
+two short**. A 100 ms quiet gap keeps adjacent pulses distinct.
 
 Numbered haptics can be disabled. The two short start pulses remain enabled so
 you still know when the delay has ended.
@@ -89,8 +100,9 @@ you still know when the delay has ended.
 - Repeating intervals from **1 second to 1 hour**.
 - Optional delays of **0, 5, 10, 15, 30 or 60 seconds**.
 - Phase-accurate elapsed time and cycle count, including after a late wake-up.
-- Optional, local-only history of the **32 most recent explicitly stopped
-  sessions**, with oldest-first eviction when full.
+- Optional, local-only history: **32 recent sessions on the watch** and all
+  successfully synchronized sessions in the paginated phone archive, with no
+  app-imposed count limit.
 - Persistent interval, delay, haptic, language and statistics settings.
 - High-contrast layouts for rectangular, round, colour and monochrome screens.
 - English and French interface; English by default.
@@ -167,7 +179,7 @@ AppMessage; it is not needed while a timer is running.
 src/c/tick-every.c      UI, state machine, persistence, scheduling and haptics
 src/c/timer_logic.*     Portable interval, delay, cycle and haptic-code logic
 src/c/session_history.* Versioned session records, CRC and serialization
-src/pkjs/index.js       Mobile configuration, local mirror and AppMessage
+src/pkjs/index.js       Mobile configuration, local archive and AppMessage
 src/pkjs/config.html    Hosted language, statistics and history page
 tests/                  Host-side C and PebbleKit JS tests
 resources/images/    Pebble launcher icon
@@ -203,8 +215,8 @@ Read [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full contribution workflow.
 ## Français
 
 Tick Every est un timer répétitif sans fin. À chaque cycle, la montre encode le
-numéro du cycle avec des vibrations : les vibrations courtes représentent les
-unités et, à partir de 10, les vibrations longues représentent les dizaines.
+numéro du cycle avec des vibrations : une vibration longue représente un
+groupe de cinq et les vibrations courtes représentent le reste.
 On peut donc suivre sa progression sans regarder l'écran.
 
 Exemple avec un délai de 10 s et un intervalle de 5 s : double mini-vibration à
@@ -214,8 +226,10 @@ jusqu'à son arrêt manuel.
 Le timer fonctionne sur la montre, sans compte Tick Every, analytics ou
 publicité. Il n'a besoin ni du téléphone ni d'Internet pendant son utilisation.
 L'anglais est la langue par défaut. La page **Configure** de l'app mobile permet
-de passer en français et d'activer, si on le souhaite, l'historique local des
-32 dernières sessions. L'ouverture de cette page hébergée nécessite Internet ;
+de passer en français et d'activer, si on le souhaite, l'historique local. La
+montre conserve les 32 dernières sessions ; le téléphone archive toutes celles
+qu'il reçoit, sans plafond de nombre imposé par l'app, et les affiche par pages
+de 32. L'ouverture de cette page hébergée nécessite Internet ;
 les réglages, le timer et l'historique sur la montre fonctionnent ensuite hors
 ligne.
 
@@ -238,8 +252,9 @@ Vibrations → Prêt**.
   si l'option était active à son démarrage et l'est encore à son arrêt manuel.
   Un arrêt pendant le délai ou une fermeture brutale ne crée pas d'entrée.
 - L'historique contient la date de fin, la durée totale, la durée active, les
-  cycles, l'intervalle, le délai et l'état des vibrations. À la 33e session, la
-  plus ancienne est remplacée.
+  cycles, l'intervalle, le délai et l'état des vibrations. À la 33e session,
+  la montre remplace la plus ancienne ; le téléphone conserve les sessions
+  déjà synchronisées.
 - Les réglages et l'historique restent locaux à la montre et au téléphone :
   aucun compte Tick Every, serveur de statistiques ou cloud n'est utilisé.
 

@@ -1,7 +1,7 @@
 {
   "name": "Tick Every",
   "package": "tick-every",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "uuid": "0987ccfa-3f0c-4225-bea5-140db3a87514",
   "type": "watchapp",
   "category": "tools",
@@ -9,9 +9,9 @@
   "sourceUrl": "https://github.com/G-Cyrille/tick-every",
   "developerName": "G-Cyrille",
   "supportEmail": "oiawo.cir@gmail.com",
-  "privacyPolicyUrl": "https://s3.grossholtz.net/public/tick-every/2026/08/30bee468-1093-4203-972f-96b2819cd8c1-privacy-policy.html",
-  "tutorialUrl": "https://s3.grossholtz.net/public/tick-every/2026/08/88d97221-7c9c-4f1c-a9ca-43dd4b880220-tutorial.html",
-  "releaseUrl": "https://s3.grossholtz.net/public/tick-every/2026/08/85046a7c-1683-4a1f-9dd3-8229e9b8e840-tick-every-v1.1.0.pbw",
+  "privacyPolicyUrl": "https://s3.grossholtz.net/public/tick-every/privacy/2026/08/3c23e364-e333-4c11-a4dd-eb6b26d195be-privacy-policy.html",
+  "tutorialUrl": "https://s3.grossholtz.net/public/tick-every/tutorial/2026/08/bd58c83f-5efb-4653-976b-41b127b9e74c-tutorial.html",
+  "releaseUrl": "https://s3.grossholtz.net/public/tick-every/release/2026/08/8c5ecb7e-1fad-44c5-b9fb-679a222c1419-tick-every-v1.2.0.pbw",
   "appStoreId": "f64d58f70cb8458390cd7749",
   "appStoreUrl": "https://apps.repebble.com/f64d58f70cb8458390cd7749",
   "appStoreStatus": "1.1.0 published",
@@ -32,6 +32,6 @@
     "banner": "store/assets/banner-720x320.png",
     "screenshots": "store/screenshots"
   },
-  "configurationUrl": "https://s3.grossholtz.net/public/tick-every/config/2026/08/fcb3afc5-e97f-4602-bcbe-b8ff756a7508-config.html",
-  "notes": "Version 1.1.0 was published on 2026-08-11. The live description and PBW checksum were verified after publication."
+  "configurationUrl": "https://s3.grossholtz.net/public/tick-every/config/2026/08/b6e5dc60-4cdb-447e-9f9f-54c41ea8a9a1-config.html",
+  "notes": "Version 1.2.0 is ready for publication. Appstore version 1.1.0 remains published."
 }

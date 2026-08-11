@@ -14,6 +14,7 @@ var sentPayloads = [];
 var storage = {};
 var timers = [];
 var failNextSend = false;
+var failNextHistoryWrite = false;
 
 function assert(condition, message) {
   assertions += 1;
@@ -91,6 +92,31 @@ function parseOpenedState(index) {
     marker.length)));
 }
 
+function compactSession(session) {
+  return [session.endedAt, session.totalDuration, session.activeDuration,
+    session.cycles, session.interval, session.delay, session.haptics ? 1 : 0];
+}
+
+function storedHistoryState() {
+  return JSON.parse(storage['tick-every-session-history-v2']);
+}
+
+function storedArchive() {
+  return storedHistoryState().archive;
+}
+
+function makeSession(id) {
+  return {
+    endedAt:1786454100 + id,
+    totalDuration:75 + id,
+    activeDuration:60 + id,
+    cycles:12 + id,
+    interval:5,
+    delay:10,
+    haptics:id % 2 === 0
+  };
+}
+
 var context = {
   require: function() {
     return {
@@ -118,6 +144,11 @@ var context = {
         ? storage[key] : null;
     },
     setItem: function(key, value) {
+      if (key === 'tick-every-session-history-v2' &&
+          failNextHistoryWrite) {
+        failNextHistoryWrite = false;
+        throw new Error('quota exceeded');
+      }
       storage[key] = value;
     }
   },
@@ -202,6 +233,7 @@ var session = {
   delay: 10,
   haptics: true
 };
+storage['tick-every-session-history'] = JSON.stringify([session]);
 handlers.showConfiguration();
 handlers.appmessage({payload: (function() {
   var payload = {};
@@ -220,8 +252,15 @@ assert(state.h[0][3] === 12 && state.h[0][6] === 1,
        'history metadata decoded incorrectly');
 assert(openedUrls[1].length < 1200,
        'compact single-session configuration URL is unexpectedly large');
+assert(storedHistoryState().version === 2,
+       'legacy history was not migrated to v2');
+assert(storedArchive().length === 1,
+       'migrated mobile archive has the wrong size');
+assert(storedHistoryState().watchSnapshot.length === 1 &&
+       storedHistoryState().watchGeneration === 7,
+       'watch sync cursor was not stored atomically');
 assert(JSON.parse(storage['tick-every-session-history']).length === 1,
-       'mobile history mirror was not stored');
+       'migration must keep the downgrade-safe legacy mirror');
 
 var corrupt = makeHistory(session);
 corrupt[16] ^= 1;
@@ -230,29 +269,107 @@ handlers.appmessage({payload: (function() {
   payload[HISTORY_DATA] = corrupt;
   return payload;
 }())});
-assert(JSON.parse(storage['tick-every-session-history'])[0].totalDuration === 75,
-       'corrupt history replaced the valid mirror');
+assert(storedArchive()[0][1] === 75,
+       'corrupt history replaced the valid archive');
 
 var pageSessions = [];
-while (pageSessions.length < 32) pageSessions.push(session);
-var page0 = makeHistoryPage(pageSessions.slice(0, 12), 32, 0, 8);
-var page1 = makeHistoryPage(pageSessions.slice(12, 24), 32, 1, 8);
-var page2 = makeHistoryPage(pageSessions.slice(24, 32), 32, 2, 8);
+var sessionIndex;
+for (sessionIndex = 31; sessionIndex > 0; sessionIndex -= 1) {
+  pageSessions.push(makeSession(sessionIndex));
+}
+pageSessions.push(session);
+var page0 = makeHistoryPage(pageSessions.slice(0, 12), 32, 0, 38);
+var page1 = makeHistoryPage(pageSessions.slice(12, 24), 32, 1, 38);
+var page2 = makeHistoryPage(pageSessions.slice(24, 32), 32, 2, 38);
 function deliverHistory(bytes) {
   var payload = {};
   payload[HISTORY_DATA] = bytes;
   handlers.appmessage({payload:payload});
 }
+function deliverSnapshot(sessions, generation) {
+  deliverHistory(makeHistoryPage(sessions.slice(0, 12), sessions.length,
+                                 0, generation));
+  if (sessions.length > 12) {
+    deliverHistory(makeHistoryPage(sessions.slice(12, 24), sessions.length,
+                                   1, generation));
+  }
+  if (sessions.length > 24) {
+    deliverHistory(makeHistoryPage(sessions.slice(24, 32), sessions.length,
+                                   2, generation));
+  }
+}
 deliverHistory(page0);
-assert(JSON.parse(storage['tick-every-session-history']).length === 1,
-       'partial snapshot replaced the complete mirror');
+assert(storedArchive().length === 1,
+       'partial snapshot replaced the complete archive');
 deliverHistory(page2);
-assert(JSON.parse(storage['tick-every-session-history']).length === 1,
-       'out-of-order page replaced the complete mirror');
+assert(storedArchive().length === 1,
+       'out-of-order page replaced the complete archive');
 deliverHistory(page1);
 deliverHistory(page2);
-assert(JSON.parse(storage['tick-every-session-history']).length === 32,
-       'three-page snapshot was not assembled');
+assert(storedArchive().length === 32,
+       'three-page snapshot was not merged');
+assert(storedHistoryState().watchSnapshot.length === 32,
+       'complete watch snapshot was not retained');
+
+var latestSession = makeSession(32);
+var nextSnapshot = [latestSession].concat(pageSessions.slice(0, 31));
+deliverSnapshot(nextSnapshot, 39);
+assert(storedArchive().length === 33 &&
+       storedArchive()[0][0] === latestSession.endedAt,
+       '33rd mobile session was not retained beyond the watch capacity');
+deliverSnapshot(nextSnapshot, 39);
+assert(storedArchive().length === 33,
+       'retransmitted snapshot duplicated the mobile archive');
+
+deliverSnapshot([], 0);
+assert(storedArchive().length === 33 &&
+       storedHistoryState().watchSnapshot.length === 0,
+       'empty/reset watch erased the mobile archive');
+
+var duplicateSession = makeSession(40);
+deliverSnapshot([duplicateSession], 1);
+deliverSnapshot([duplicateSession, duplicateSession], 2);
+assert(storedArchive().length === 35,
+       'ordered merge discarded an identical real session');
+
+var beforeQuotaFailure = storage['tick-every-session-history-v2'];
+var quotaSession = makeSession(41);
+failNextHistoryWrite = true;
+deliverSnapshot([quotaSession, duplicateSession, duplicateSession], 3);
+assert(storage['tick-every-session-history-v2'] === beforeQuotaFailure,
+       'quota failure partially changed the atomic archive');
+deliverSnapshot([quotaSession, duplicateSession, duplicateSession], 3);
+assert(storedArchive().length === 36,
+       'archive did not recover after a transient quota failure');
+
+var wrapOldSession = makeSession(50);
+var wrapNewSession = makeSession(51);
+storage['tick-every-session-history-v2'] = JSON.stringify({
+  version:2,
+  archive:[compactSession(wrapOldSession)],
+  watchSnapshot:[compactSession(wrapOldSession)],
+  watchGeneration:255
+});
+deliverSnapshot([wrapNewSession, wrapOldSession], 0);
+assert(storedArchive().length === 2 &&
+       storedArchive()[0][0] === wrapNewSession.endedAt,
+       'generation wrap 255 to 0 lost the new session');
+
+var gapSessions = [];
+for (sessionIndex = 1032; sessionIndex > 1000; sessionIndex -= 1) {
+  gapSessions.push(makeSession(sessionIndex));
+}
+deliverSnapshot(gapSessions, 40);
+assert(storedArchive().length === 34,
+       'snapshot without overlap was not appended after a sync gap');
+
+var resetCollisionSessions = [];
+for (sessionIndex = 2032; sessionIndex > 2000; sessionIndex -= 1) {
+  resetCollisionSessions.push(makeSession(sessionIndex));
+}
+deliverSnapshot(resetCollisionSessions, 40);
+assert(storedArchive().length === 66,
+       'changed snapshot with the same generation lost sessions');
 
 handlers.ready();
 assert(sentPayloads[sentPayloads.length - 1][LANGUAGE] === 1,
@@ -284,17 +401,70 @@ assert(sentPayloads[sentPayloads.length - 1][LANGUAGE] === 0 &&
        'failed settings were not retried');
 
 var fullHistory = [];
-while (fullHistory.length < 32) fullHistory.push(session);
-storage['tick-every-session-history'] = JSON.stringify(fullHistory);
+for (sessionIndex = 200; sessionIndex > 100; sessionIndex -= 1) {
+  fullHistory.push(makeSession(sessionIndex));
+}
+storage['tick-every-session-history-v2'] = JSON.stringify({
+  version:2,
+  archive:fullHistory.map(compactSession),
+  watchSnapshot:fullHistory.slice(0, 32).map(compactSession),
+  watchGeneration:100
+});
 handlers.showConfiguration();
 var fullHistoryTimer = null;
 timers.forEach(function(timer) {
   if (typeof timer === 'function') fullHistoryTimer = timer;
 });
 fullHistoryTimer();
-assert(parseOpenedState(openedUrls.length - 1).h.length === 32,
-       'full history was not passed to configuration');
+state = parseOpenedState(openedUrls.length - 1);
+assert(state.h.length === 32 && state.n === 100 && state.o === 0,
+       'first mobile archive page was not passed to configuration');
 assert(openedUrls[openedUrls.length - 1].length < 4000,
-       'full compact history exceeds the conservative URL budget');
+       'one compact history page exceeds the conservative URL budget');
+
+var payloadCountBeforePaging = sentPayloads.length;
+handlers.webviewclosed({
+  response:encodeURIComponent(JSON.stringify({
+    action:'page', historyOffset:32, language:1, saveStatistics:true
+  }))
+});
+state = parseOpenedState(openedUrls.length - 1);
+assert(state.h.length === 32 && state.n === 100 && state.o === 32,
+       'second mobile archive page was not opened');
+assert(state.l === 1 && state.s === true,
+       'unsaved settings draft was lost while paging history');
+assert(storage['tick-every-language'] === '0' &&
+       storage['tick-every-save-statistics'] === '0',
+       'history paging persisted the settings draft before Save');
+assert(sentPayloads.length === payloadCountBeforePaging,
+       'history paging unexpectedly rewrote watch settings');
+
+handlers.webviewclosed({
+  response:encodeURIComponent(JSON.stringify({
+    action:'page', historyOffset:96, language:1, saveStatistics:true
+  }))
+});
+state = parseOpenedState(openedUrls.length - 1);
+assert(state.h.length === 4 && state.o === 96,
+       'last partial mobile archive page was not opened');
+assert(state.l === 1 && state.s === true,
+       'settings draft did not survive multiple history pages');
+
+var openedBeforeInvalidPage = openedUrls.length;
+handlers.webviewclosed({
+  response:encodeURIComponent(JSON.stringify({
+    action:'page', historyOffset:-1, language:1, saveStatistics:true
+  }))
+});
+assert(openedUrls.length === openedBeforeInvalidPage,
+       'invalid history page offset was accepted');
+
+handlers.webviewclosed({
+  response:encodeURIComponent(JSON.stringify({
+    action:'page', historyOffset:31, language:1, saveStatistics:true
+  }))
+});
+assert(openedUrls.length === openedBeforeInvalidPage,
+       'non-page-aligned history offset was accepted');
 
 console.log('pkjs_config: ' + assertions + ' assertions passed');

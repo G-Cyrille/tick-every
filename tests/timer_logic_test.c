@@ -147,7 +147,7 @@ static void test_delays(void) {
   }
 }
 
-/* Verifies required examples and uint32 decimal-decomposition bounds. */
+/* Verifies groups-of-five examples and uint32 decomposition bounds. */
 static void test_cycle_patterns(void) {
   TickCyclePattern pattern = {99U, 99U};
 
@@ -159,18 +159,44 @@ static void test_cycle_patterns(void) {
   EXPECT_EQ(tick_cycle_pattern(1U, &pattern), 1U);
   EXPECT_EQ(pattern.long_vibrations, 0U);
   EXPECT_EQ(pattern.short_vibrations, 1U);
-  EXPECT_EQ(tick_cycle_pattern(9U, &pattern), 1U);
+  EXPECT_EQ(tick_cycle_pattern(4U, &pattern), 1U);
   EXPECT_EQ(pattern.long_vibrations, 0U);
-  EXPECT_EQ(pattern.short_vibrations, 9U);
-  EXPECT_EQ(tick_cycle_pattern(12U, &pattern), 1U);
+  EXPECT_EQ(pattern.short_vibrations, 4U);
+  EXPECT_EQ(tick_cycle_pattern(5U, &pattern), 1U);
   EXPECT_EQ(pattern.long_vibrations, 1U);
+  EXPECT_EQ(pattern.short_vibrations, 0U);
+  EXPECT_EQ(tick_cycle_pattern(9U, &pattern), 1U);
+  EXPECT_EQ(pattern.long_vibrations, 1U);
+  EXPECT_EQ(pattern.short_vibrations, 4U);
+  EXPECT_EQ(tick_cycle_pattern(12U, &pattern), 1U);
+  EXPECT_EQ(pattern.long_vibrations, 2U);
   EXPECT_EQ(pattern.short_vibrations, 2U);
   EXPECT_EQ(tick_cycle_pattern(55U, &pattern), 1U);
-  EXPECT_EQ(pattern.long_vibrations, 5U);
-  EXPECT_EQ(pattern.short_vibrations, 5U);
+  EXPECT_EQ(pattern.long_vibrations, 11U);
+  EXPECT_EQ(pattern.short_vibrations, 0U);
   EXPECT_EQ(tick_cycle_pattern(UINT32_MAX, &pattern), 1U);
-  EXPECT_EQ(pattern.long_vibrations, UINT32_MAX / 10U);
-  EXPECT_EQ(pattern.short_vibrations, UINT32_MAX % 10U);
+  EXPECT_EQ(pattern.long_vibrations, UINT32_MAX / 5U);
+  EXPECT_EQ(pattern.short_vibrations, UINT32_MAX % 5U);
+
+  EXPECT_EQ(tick_cycle_pattern(4U, &pattern), 1U);
+  EXPECT_EQ(tick_cycle_pattern_segment_count(&pattern), 7U);
+  EXPECT_EQ(tick_cycle_pattern_duration_ms(&pattern), 780U);
+  EXPECT_EQ(tick_cycle_pattern(12U, &pattern), 1U);
+  EXPECT_EQ(tick_cycle_pattern_segment_count(&pattern), 7U);
+  EXPECT_EQ(tick_cycle_pattern_duration_ms(&pattern), 1140U);
+  EXPECT_EQ(tick_cycle_pattern(55U, &pattern), 1U);
+  EXPECT_EQ(tick_cycle_pattern_segment_count(&pattern), 21U);
+  EXPECT_EQ(tick_cycle_pattern_duration_ms(&pattern), 4300U);
+  EXPECT_EQ(tick_cycle_pattern(144U, &pattern), 1U);
+  EXPECT_EQ(tick_cycle_pattern_segment_count(&pattern), 63U);
+  EXPECT_EQ(tick_cycle_pattern_duration_ms(&pattern), 11980U);
+  EXPECT_EQ(tick_cycle_pattern(149U, &pattern), 1U);
+  EXPECT_EQ(tick_cycle_pattern_segment_count(&pattern), 65U);
+  EXPECT_EQ(tick_cycle_pattern(160U, &pattern), 1U);
+  EXPECT_EQ(tick_cycle_pattern_segment_count(&pattern), 63U);
+  EXPECT_EQ(tick_cycle_pattern_duration_ms(&pattern), 12700U);
+  EXPECT_EQ(tick_cycle_pattern_segment_count(NULL), 0U);
+  EXPECT_EQ(tick_cycle_pattern_duration_ms(NULL), 0U);
 }
 
 /* Checks the required D=10/X=5 timeline, late wakes, and no final clamp. */

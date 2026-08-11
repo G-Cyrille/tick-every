@@ -34,6 +34,9 @@
     .history-summary { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 14px; }
     .badge { flex:0 0 auto; padding:5px 10px; border-radius:999px; background:var(--blue); font-size:13px; font-weight:800; }
     .history { display:grid; gap:12px; }
+    .history-nav { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .history-nav button { margin-top:16px; padding:12px; color:var(--ink); background:var(--white); border:2px solid rgba(16,42,67,.18); box-shadow:0 3px 0 rgba(16,42,67,.12); font-size:15px; }
+    .history-nav button:disabled { opacity:.4; cursor:default; transform:none; }
     .session { position:relative; overflow:hidden; padding:15px 16px 14px 20px; border:1px solid rgba(16,42,67,.15); border-radius:13px; background:var(--white); box-shadow:0 3px 0 rgba(16,42,67,.08); }
     .session::before { content:""; position:absolute; inset:0 auto 0 0; width:6px; background:var(--green); }
     .session:nth-child(even)::before { background:var(--orange); }
@@ -42,6 +45,7 @@
     .metric { color:#334e68; font-size:15px; }
     .metric b { color:var(--ink); }
     .empty { padding:24px 18px; border:2px dashed rgba(16,42,67,.22); border-radius:14px; text-align:center; color:var(--muted); background:rgba(255,255,255,.45); }
+    .warning { margin:0 0 14px; padding:12px 14px; border:2px solid #b45309; border-radius:12px; color:#7c2d12; background:#ffedd5; font-size:14px; }
     .privacy { margin:22px 4px 0; font-size:14px; color:var(--muted); }
     @media (max-width:380px) { .metrics { grid-template-columns:1fr; } }
   </style>
@@ -76,7 +80,7 @@
         <label class="option toggle" id="statistics-option">
           <span class="toggle-copy">
             <strong>Save session history</strong>
-            <small>Enregistrer l’historique des sessions sur la montre et le téléphone</small>
+            <small>32 sessions sur la montre, sessions synchronisées archivées sur le téléphone</small>
           </span>
           <input type="checkbox" name="saveStatistics" aria-label="Save session history">
         </label>
@@ -85,9 +89,14 @@
       <section>
         <div class="history-summary">
           <div><h2>History</h2><p class="hint" style="margin:0">Historique local</p></div>
-          <span class="badge" id="history-count">0 / 32</span>
+          <span class="badge" id="history-count">0</span>
         </div>
+        <p class="warning" id="history-warning" hidden>Phone storage is full. The newest sessions could not be archived.<br>Le stockage du téléphone est plein. Les dernières sessions n’ont pas pu être archivées.</p>
         <div class="history" id="history"></div>
+        <div class="history-nav" id="history-nav">
+          <button type="button" id="history-newer">← Newer · Récentes</button>
+          <button type="button" id="history-older">Older · Anciennes →</button>
+        </div>
       </section>
 
       <button type="submit">Save · Enregistrer</button>
@@ -96,7 +105,10 @@
   </main>
   <script>
     (function() {
-      var state = { language:0, saveStatistics:false, history:[] };
+      var state = {
+        language:0, saveStatistics:false, history:[],
+        historyOffset:0, totalHistory:0, storageWarning:false
+      };
       var stateMatch = window.location.hash.match(/(?:^#|&)state=([^&]+)/);
       var historyElement = document.getElementById('history');
       var languageInputs = document.querySelectorAll('input[name="language"]');
@@ -120,6 +132,12 @@
             state.saveStatistics = parsed.s;
             state.history = parsed.h.slice(0, 32).map(expandSession).filter(
               function(session) { return session !== null; });
+            state.historyOffset = typeof parsed.o === 'number' &&
+              parsed.o >= 0 ? Math.floor(parsed.o) : 0;
+            state.totalHistory = typeof parsed.n === 'number' &&
+              parsed.n >= state.history.length ? Math.floor(parsed.n) :
+              state.history.length;
+            state.storageWarning = parsed.w === true;
           }
         } catch (error) {}
       }
@@ -154,7 +172,13 @@
         var locale = document.querySelector('input[name="language"]:checked').value === '1'
           ? 'fr-FR' : 'en-GB';
         var html = '';
-        document.getElementById('history-count').textContent = state.history.length + ' / 32';
+        var first = state.history.length > 0 ? state.historyOffset + 1 : 0;
+        var last = state.historyOffset + state.history.length;
+        document.getElementById('history-count').textContent =
+          (first === last ? String(last) : first + '–' + last) +
+          ' / ' + state.totalHistory;
+        document.getElementById('history-warning').hidden =
+          !state.storageWarning;
         state.history.forEach(function(session) {
           if (!session || typeof session.endedAt !== 'number') return;
           var ended = formatDate(session.endedAt, locale);
@@ -170,6 +194,10 @@
             '</div></article>';
         });
         historyElement.innerHTML = html || '<div class="empty">No saved sessions yet.<br>Aucune session enregistrée.</div>';
+        document.getElementById('history-newer').disabled =
+          state.historyOffset === 0;
+        document.getElementById('history-older').disabled =
+          state.historyOffset + state.history.length >= state.totalHistory;
       }
 
       function updateSelections() {
@@ -190,14 +218,35 @@
       });
       statisticsInput.addEventListener('change', updateSelections);
 
-      document.getElementById('settings').addEventListener('submit', function(event) {
-        event.preventDefault();
+      function saveConfiguration() {
         var language = Number(document.querySelector('input[name="language"]:checked').value);
-        var payload = encodeURIComponent(JSON.stringify({
+        var response = {
+          action:'save',
           language:language,
           saveStatistics:statisticsInput.checked
+        };
+        var payload = encodeURIComponent(JSON.stringify(response));
+        window.location.href = 'pebblejs://close#' + payload;
+      }
+
+      function openHistoryPage(historyOffset) {
+        var language = Number(document.querySelector('input[name="language"]:checked').value);
+        var payload = encodeURIComponent(JSON.stringify({
+          action:'page', historyOffset:Math.max(0, historyOffset),
+          language:language, saveStatistics:statisticsInput.checked
         }));
         window.location.href = 'pebblejs://close#' + payload;
+      }
+
+      document.getElementById('history-newer').addEventListener('click', function() {
+        openHistoryPage(Math.max(0, state.historyOffset - 32));
+      });
+      document.getElementById('history-older').addEventListener('click', function() {
+        openHistoryPage(state.historyOffset + 32);
+      });
+      document.getElementById('settings').addEventListener('submit', function(event) {
+        event.preventDefault();
+        saveConfiguration();
       });
       updateSelections();
       renderHistory();

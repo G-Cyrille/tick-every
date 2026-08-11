@@ -5,8 +5,11 @@
 
 #define TICK_TIMER_MIN_SECONDS 1U
 #define TICK_TIMER_MAX_SECONDS 3600U
+#define TICK_HAPTIC_SHORT_PULSE_MS 120U
+#define TICK_HAPTIC_LONG_PULSE_MS 300U
+#define TICK_HAPTIC_GAP_MS 100U
 
-/* Describes the decimal haptic code for one completed timer cycle. */
+/* Describes the base-five haptic code for one completed timer cycle. */
 typedef struct {
   uint32_t long_vibrations;
   uint32_t short_vibrations;
@@ -35,10 +38,18 @@ unsigned int tick_delay_next(unsigned int delay_seconds);
 unsigned int tick_delay_previous(unsigned int delay_seconds);
 
 /*
- * Splits every non-zero uint32 cycle into decimal long and short vibrations.
+ * Splits every non-zero uint32 cycle into groups of five and a remainder.
+ * One long vibration represents five cycles; short vibrations represent the
+ * remaining one to four cycles.
  * Physical pattern-size limits are deliberately enforced by the watch app.
  */
 int tick_cycle_pattern(uint32_t cycle, TickCyclePattern *out_pattern);
+
+/* Returns the alternating ON/OFF segment count, or zero for an empty code. */
+uint64_t tick_cycle_pattern_segment_count(const TickCyclePattern *pattern);
+
+/* Returns the exact duration of one base-five pattern, including quiet gaps. */
+uint64_t tick_cycle_pattern_duration_ms(const TickCyclePattern *pattern);
 
 /* Returns elapsed / timer without a final-duration clamp. */
 uint64_t tick_cycles_reached_ms(uint64_t elapsed_ms,

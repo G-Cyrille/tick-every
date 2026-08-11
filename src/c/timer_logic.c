@@ -88,14 +88,41 @@ unsigned int tick_delay_previous(unsigned int delay_seconds) {
   return TICK_DELAYS[0];
 }
 
-/* Encodes a cycle number as its tens and units haptic components. */
+/* Encodes a cycle number as groups of five plus a one-to-four remainder. */
 int tick_cycle_pattern(uint32_t cycle, TickCyclePattern *out_pattern) {
   if (out_pattern == NULL || cycle == 0U) {
     return 0;
   }
-  out_pattern->long_vibrations = cycle / 10U;
-  out_pattern->short_vibrations = cycle % 10U;
+  out_pattern->long_vibrations = cycle / 5U;
+  out_pattern->short_vibrations = cycle % 5U;
   return 1;
+}
+
+/* Counts one ON segment per pulse and one OFF segment between pulses. */
+uint64_t tick_cycle_pattern_segment_count(const TickCyclePattern *pattern) {
+  uint64_t pulse_count;
+  if (pattern == NULL) {
+    return 0U;
+  }
+  pulse_count = (uint64_t)pattern->long_vibrations +
+                pattern->short_vibrations;
+  return pulse_count == 0U ? 0U : pulse_count * 2U - 1U;
+}
+
+/* Includes the longer quiet gap that keeps adjacent pulses distinguishable. */
+uint64_t tick_cycle_pattern_duration_ms(const TickCyclePattern *pattern) {
+  uint64_t pulse_count;
+  if (pattern == NULL) {
+    return 0U;
+  }
+  pulse_count = (uint64_t)pattern->long_vibrations +
+                pattern->short_vibrations;
+  if (pulse_count == 0U) {
+    return 0U;
+  }
+  return (uint64_t)pattern->long_vibrations * TICK_HAPTIC_LONG_PULSE_MS +
+         (uint64_t)pattern->short_vibrations * TICK_HAPTIC_SHORT_PULSE_MS +
+         (pulse_count - 1U) * TICK_HAPTIC_GAP_MS;
 }
 
 /* Counts every completed repeat boundary, including arbitrarily late wakes. */

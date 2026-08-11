@@ -1,5 +1,19 @@
 # Release notes
 
+## 1.2.0 — English
+
+The watch still keeps 32 recent sessions, while the phone now archives every
+session it successfully receives without an app-imposed count limit. Configure
+shows the archive in pages of 32. Long vibrations now represent groups of five
+cycles, and the quiet gap between pulses is doubled for clearer counting.
+
+## 1.2.0 — Français
+
+La montre conserve toujours 32 sessions récentes, tandis que le téléphone
+archive toutes celles qu'il reçoit sans plafond imposé par l'app. Configure les
+affiche par pages de 32. Les vibrations longues représentent maintenant des
+groupes de cinq cycles et le silence entre impulsions est doublé.
+
 ## 1.1.0 — English
 
 Optional local history for the 32 latest completed sessions, available on the

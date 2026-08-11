@@ -26,9 +26,6 @@
 #define HAPTIC_SEGMENT_CAPACITY 63U
 #define HAPTIC_MAX_PULSES ((HAPTIC_SEGMENT_CAPACITY + 1U) / 2U)
 #define HAPTIC_DEADLINE_MARGIN_MS 20U
-#define HAPTIC_SHORT_PULSE_MS 120U
-#define HAPTIC_LONG_PULSE_MS 300U
-#define HAPTIC_GAP_MS 50U
 
 typedef enum {
   APP_STATE_SET_TIMER = 0,
@@ -654,7 +651,7 @@ static void prv_schedule_runtime_timer(void) {
 }
 
 /*
- * Enqueues the decimal code when it fits both hard limits: at most 32 pulses
+ * Enqueues the base-five code when it fits both hard limits: at most 32 pulses
  * (63 static API segments) and completion 20 ms before the next cycle.
  * Oversize codes are skipped; the repeating timer itself always continues.
  */
@@ -683,10 +680,7 @@ static void prv_vibrate_for_cycle(uint64_t cycle,
 
   pulse_count = (unsigned int)(code.long_vibrations +
                                code.short_vibrations);
-  pattern_duration_ms =
-      (unsigned int)code.long_vibrations * HAPTIC_LONG_PULSE_MS +
-      (unsigned int)code.short_vibrations * HAPTIC_SHORT_PULSE_MS +
-      (pulse_count - 1U) * HAPTIC_GAP_MS;
+  pattern_duration_ms = (unsigned int)tick_cycle_pattern_duration_ms(&code);
   if (available_ms <= HAPTIC_DEADLINE_MARGIN_MS ||
       pattern_duration_ms > available_ms - HAPTIC_DEADLINE_MARGIN_MS) {
     if (!s_haptic_limit_logged) {
@@ -701,15 +695,15 @@ static void prv_vibrate_for_cycle(uint64_t cycle,
   s_haptic_limit_logged = false;
   vibes_cancel();
   for (index = 0U; index < code.long_vibrations; ++index) {
-    s_haptic_durations[segment_count++] = HAPTIC_LONG_PULSE_MS;
+    s_haptic_durations[segment_count++] = TICK_HAPTIC_LONG_PULSE_MS;
     if (segment_count < pulse_count * 2U - 1U) {
-      s_haptic_durations[segment_count++] = HAPTIC_GAP_MS;
+      s_haptic_durations[segment_count++] = TICK_HAPTIC_GAP_MS;
     }
   }
   for (index = 0U; index < code.short_vibrations; ++index) {
-    s_haptic_durations[segment_count++] = HAPTIC_SHORT_PULSE_MS;
+    s_haptic_durations[segment_count++] = TICK_HAPTIC_SHORT_PULSE_MS;
     if (segment_count < pulse_count * 2U - 1U) {
-      s_haptic_durations[segment_count++] = HAPTIC_GAP_MS;
+      s_haptic_durations[segment_count++] = TICK_HAPTIC_GAP_MS;
     }
   }
 
@@ -798,6 +792,7 @@ static void prv_pause_timer(void) {
   s_elapsed_before_segment_ms = prv_current_elapsed_ms(now);
   s_elapsed_seconds = tick_elapsed_seconds_from_ms(
       s_elapsed_before_segment_ms);
+  vibes_cancel();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Timer pause: elapsed=%u", s_elapsed_seconds);
   prv_set_state(APP_STATE_PAUSED);
 }
@@ -843,6 +838,7 @@ static void prv_ask_to_stop(void) {
     s_stop_snapshot_valid = s_session_active_started;
   }
   prv_cancel_runtime_timer();
+  vibes_cancel();
   prv_set_state(APP_STATE_STOP_CONFIRM);
 }
 
@@ -1261,7 +1257,7 @@ static void prv_canvas_update_proc(Layer *layer, GContext *ctx) {
       snprintf(info_first, sizeof(info_first), "%s",
                prv_text("CYCLE NUMBER", "NUMÉRO DU CYCLE"));
       snprintf(info_second, sizeof(info_second), "%s",
-               prv_text("DECIMAL CODE", "CODE DÉCIMAL"));
+               prv_text("GROUPS OF 5", "GROUPES DE 5"));
       snprintf(first_action, sizeof(first_action), "%s",
                prv_text("UP/DOWN YES/NO", "HAUT/BAS OUI/NON"));
       snprintf(second_action, sizeof(second_action), "%s",

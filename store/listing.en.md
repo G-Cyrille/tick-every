@@ -8,7 +8,7 @@ A repeating haptic timer that counts cycles so you can stay on rhythm without lo
 
 Tick Every is a simple haptic timer that keeps running until you stop it.
 
-Choose an interval, optionally add a start delay, then launch the timer. The watch gives two short pulses when timing actually begins. It then vibrates at every cycle: once for cycle one, twice for cycle two, three times for cycle three, and so on. From cycle 10 onward, long pulses represent tens and short pulses represent units.
+Choose an interval, optionally add a start delay, then launch the timer. The watch gives two short pulses when timing actually begins. It then vibrates at every cycle. One long pulse represents a group of five cycles and short pulses represent the remainder: cycle 7 is one long plus two short, and cycle 12 is two long plus two short. Longer quiet gaps keep adjacent pulses distinct.
 
 Example: with a 10-second delay and a 5-second interval, the start signal happens at 10 seconds, followed by cycle signals at 15, 20, 25 seconds… until you stop the timer.
 
@@ -18,8 +18,10 @@ Features:
 - optional start delay;
 - optional haptic cycle counter;
 - quick pause, resume and stop controls;
-- optional, local-only history of the 32 most recent completed sessions;
-- history available both on the watch and from Configure in the Pebble app;
+- optional, local-only history: 32 recent sessions on the watch and every
+  successfully synchronized session in the phone archive, with no app-imposed
+  count limit;
+- paginated phone history available from Configure in the Pebble app;
 - timer works fully offline after installation;
 - English by default, with French selectable from Configure in the Pebble mobile app;
 - layouts for rectangular, round, color and black-and-white displays.

@@ -1,12 +1,15 @@
 var messageKeys = require('message_keys');
 
-var CONFIG_URL = 'https://s3.grossholtz.net/public/tick-every/config/2026/08/fcb3afc5-e97f-4602-bcbe-b8ff756a7508-config.html';
+var CONFIG_URL = 'https://s3.grossholtz.net/public/tick-every/config/2026/08/b6e5dc60-4cdb-447e-9f9f-54c41ea8a9a1-config.html';
 var STORAGE_KEY_LANGUAGE = 'tick-every-language';
 var STORAGE_KEY_STATISTICS = 'tick-every-save-statistics';
 var STORAGE_KEY_HISTORY = 'tick-every-session-history';
+var STORAGE_KEY_HISTORY_V2 = 'tick-every-session-history-v2';
 var LANGUAGE_ENGLISH = 0;
 var LANGUAGE_FRENCH = 1;
-var HISTORY_CAPACITY = 32;
+var WATCH_HISTORY_CAPACITY = 32;
+var MOBILE_HISTORY_PAGE_SIZE = 32;
+var MOBILE_HISTORY_STORAGE_VERSION = 2;
 var HISTORY_HEADER_SIZE = 12;
 var HISTORY_RECORD_SIZE = 20;
 var HISTORY_RECORDS_PER_PAGE = 12;
@@ -15,6 +18,10 @@ var SETTINGS_RETRY_COUNT = 3;
 var SETTINGS_RETRY_DELAY_MS = 500;
 var configurationOpenPending = false;
 var configurationOpenTimer = null;
+var configurationHistoryOffset = 0;
+var configurationDraftLanguage = null;
+var configurationDraftStatistics = null;
+var mobileHistoryStorageWarning = false;
 var pendingHistory = null;
 
 /* Returns the last mobile language choice, repairing invalid values to EN. */
@@ -55,22 +62,171 @@ function isValidSession(session) {
     typeof session.haptics === 'boolean';
 }
 
-/* Returns only the newest valid records from PebbleKit JS localStorage. */
-function getStoredHistory() {
-  var parsed;
+/* Expands the compact on-phone format while accepting the 1.1 object format. */
+function expandStoredSession(value) {
+  if (Array.isArray(value) && value.length === 7) {
+    return {
+      endedAt:value[0], totalDuration:value[1], activeDuration:value[2],
+      cycles:value[3], interval:value[4], delay:value[5],
+      haptics:value[6] === 1
+    };
+  }
+  return value;
+}
+
+/* Filters either compact or legacy object records through the strict schema. */
+function validStoredSessions(values) {
   var valid = [];
   var index;
-  try {
-    parsed = JSON.parse(localStorage.getItem(STORAGE_KEY_HISTORY) || '[]');
-  } catch (error) {
-    parsed = [];
-  }
-  if (!Array.isArray(parsed)) return valid;
-  for (index = 0; index < parsed.length && valid.length < HISTORY_CAPACITY;
-       index += 1) {
-    if (isValidSession(parsed[index])) valid.push(parsed[index]);
+  var session;
+  if (!Array.isArray(values)) return valid;
+  for (index = 0; index < values.length; index += 1) {
+    session = expandStoredSession(values[index]);
+    if (isValidSession(session)) valid.push(session);
   }
   return valid;
+}
+
+/* Loads the atomic v2 archive, or migrates the 1.1 mirror without deleting it. */
+function getStoredHistoryState() {
+  var parsed;
+  try {
+    parsed = JSON.parse(localStorage.getItem(STORAGE_KEY_HISTORY_V2) || 'null');
+  } catch (error) {
+    parsed = null;
+  }
+  if (parsed && parsed.version === MOBILE_HISTORY_STORAGE_VERSION &&
+      Array.isArray(parsed.archive) && Array.isArray(parsed.watchSnapshot)) {
+    return {
+      archive:validStoredSessions(parsed.archive),
+      watchSnapshot:validStoredSessions(parsed.watchSnapshot).slice(
+        0, WATCH_HISTORY_CAPACITY),
+      watchGeneration:typeof parsed.watchGeneration === 'number' &&
+        parsed.watchGeneration >= 0 && parsed.watchGeneration <= 255
+        ? parsed.watchGeneration : null
+    };
+  }
+
+  try {
+    parsed = JSON.parse(localStorage.getItem(STORAGE_KEY_HISTORY) || '[]');
+  } catch (legacyError) {
+    parsed = [];
+  }
+  parsed = validStoredSessions(parsed);
+  return {
+    archive:parsed,
+    watchSnapshot:parsed.slice(0, WATCH_HISTORY_CAPACITY),
+    watchGeneration:null
+  };
+}
+
+/* Returns every valid locally archived record; the app imposes no count cap. */
+function getStoredHistory() {
+  return getStoredHistoryState().archive;
+}
+
+/* Compares records only inside an ordered snapshot overlap. */
+function sessionKey(session) {
+  return compactSession(session).join(':');
+}
+
+function sessionsEqual(left, right) {
+  return sessionKey(left) === sessionKey(right);
+}
+
+/* Finds the newest prefix added since the prior watch snapshot. */
+function newWatchSessions(watchSessions, generation, previous,
+                          previousGeneration) {
+  var delta;
+  var overlap;
+  var index;
+  var added;
+  var bestAdded = watchSessions.length;
+  var bestOverlap = 0;
+  var matches;
+
+  if (typeof previousGeneration === 'number') {
+    delta = (generation - previousGeneration + 256) % 256;
+    if (delta === 0 && watchSessions.length === previous.length) {
+      matches = true;
+      for (index = 0; index < watchSessions.length; index += 1) {
+        if (!sessionsEqual(watchSessions[index], previous[index])) {
+          matches = false;
+          break;
+        }
+      }
+      if (matches) return [];
+    }
+    if (delta > 0 && delta <= WATCH_HISTORY_CAPACITY &&
+        delta <= watchSessions.length) {
+      overlap = Math.min(watchSessions.length - delta, previous.length);
+      matches = overlap > 0 || delta === watchSessions.length;
+      for (index = 0; matches && index < overlap; index += 1) {
+        if (!sessionsEqual(watchSessions[delta + index], previous[index])) {
+          matches = false;
+        }
+      }
+      if (matches) return watchSessions.slice(0, delta);
+    }
+    /* A gap beyond the watch capacity cannot be reconstructed safely. */
+    return watchSessions.slice(0);
+  }
+
+  /* Only legacy 1.1 data lacks a generation; migrate it by ordered overlap. */
+  for (added = 0; added <= watchSessions.length; added += 1) {
+    overlap = Math.min(watchSessions.length - added, previous.length);
+    if (overlap === 0) continue;
+    matches = true;
+    for (index = 0; index < overlap; index += 1) {
+      if (!sessionsEqual(watchSessions[added + index], previous[index])) {
+        matches = false;
+        break;
+      }
+    }
+    if (matches && (overlap > bestOverlap ||
+        (overlap === bestOverlap && added > bestAdded))) {
+      bestOverlap = overlap;
+      bestAdded = added;
+    }
+  }
+  return bestOverlap > 0 ? watchSessions.slice(0, bestAdded)
+    : watchSessions.slice(0);
+}
+
+/* Adds only the newly observed prefix without deleting the older archive. */
+function mergeWatchHistory(state, watchSessions, generation) {
+  var additions = newWatchSessions(watchSessions, generation,
+                                    state.watchSnapshot,
+                                    state.watchGeneration);
+  return additions.concat(state.archive);
+}
+
+/* Compacts a list before its single atomic localStorage write. */
+function compactSessions(sessions) {
+  var compact = [];
+  var index;
+  for (index = 0; index < sessions.length; index += 1) {
+    compact.push(compactSession(sessions[index]));
+  }
+  return compact;
+}
+
+/* Stores archive and sync cursor atomically; quota failure changes neither. */
+function storeHistoryState(history, watchSnapshot, watchGeneration) {
+  try {
+    localStorage.setItem(STORAGE_KEY_HISTORY_V2, JSON.stringify({
+      version:MOBILE_HISTORY_STORAGE_VERSION,
+      archive:compactSessions(history),
+      watchSnapshot:compactSessions(watchSnapshot),
+      watchGeneration:watchGeneration
+    }));
+    mobileHistoryStorageWarning = false;
+    return true;
+  } catch (error) {
+    mobileHistoryStorageWarning = true;
+    console.log('Mobile history storage failed: ' + error.message);
+    return false;
+  }
 }
 
 /* Reads one little-endian uint32 without introducing signed JS values. */
@@ -125,7 +281,7 @@ function decodeHistoryPage(bytes) {
   start = page * HISTORY_RECORDS_PER_PAGE;
   recordCount = count > start
     ? Math.min(HISTORY_RECORDS_PER_PAGE, count - start) : 0;
-  if (count > HISTORY_CAPACITY || (page > 0 && recordCount === 0) ||
+  if (count > WATCH_HISTORY_CAPACITY || (page > 0 && recordCount === 0) ||
       bytes.length !== HISTORY_HEADER_SIZE + recordCount * HISTORY_RECORD_SIZE ||
       readUint32(bytes, 8) !== historyCrc(bytes)) {
     return null;
@@ -180,7 +336,7 @@ function sendSettings(requestHistory, success, failure) {
   sendSettingsAttempt(requestHistory, SETTINGS_RETRY_COUNT, success, failure);
 }
 
-/* Compacts one record so a full history remains safe for old webview URLs. */
+/* Compacts one record so one mobile page remains safe for old webview URLs. */
 function compactSession(session) {
   return [session.endedAt, session.totalDuration, session.activeDuration,
     session.cycles, session.interval, session.delay, session.haptics ? 1 : 0];
@@ -190,6 +346,8 @@ function compactSession(session) {
 function openConfiguration() {
   var state;
   var history;
+  var page;
+  var maximumOffset;
   if (!configurationOpenPending) return;
   configurationOpenPending = false;
   if (configurationOpenTimer !== null) {
@@ -197,8 +355,24 @@ function openConfiguration() {
     configurationOpenTimer = null;
   }
   history = getStoredHistory();
-  state = {l: getStoredLanguage(), s: getStoredStatisticsEnabled(), h: []};
-  history.forEach(function(session) {
+  maximumOffset = history.length > 0
+    ? Math.floor((history.length - 1) / MOBILE_HISTORY_PAGE_SIZE) *
+        MOBILE_HISTORY_PAGE_SIZE
+    : 0;
+  if (configurationHistoryOffset > maximumOffset) {
+    configurationHistoryOffset = maximumOffset;
+  }
+  page = history.slice(configurationHistoryOffset,
+                       configurationHistoryOffset + MOBILE_HISTORY_PAGE_SIZE);
+  state = {
+    l:configurationDraftLanguage === null ? getStoredLanguage()
+      : configurationDraftLanguage,
+    s:configurationDraftStatistics === null ? getStoredStatisticsEnabled()
+      : configurationDraftStatistics,
+    h:[], o:configurationHistoryOffset, n:history.length,
+    w:mobileHistoryStorageWarning
+  };
+  page.forEach(function(session) {
     state.h.push(compactSession(session));
   });
   Pebble.openURL(CONFIG_URL + '#state=' +
@@ -207,6 +381,9 @@ function openConfiguration() {
 
 /* Requests a fresh snapshot but never blocks opening when the watch is absent. */
 Pebble.addEventListener('showConfiguration', function() {
+  configurationHistoryOffset = 0;
+  configurationDraftLanguage = getStoredLanguage();
+  configurationDraftStatistics = getStoredStatisticsEnabled();
   configurationOpenPending = true;
   configurationOpenTimer = setTimeout(openConfiguration, 1500);
   sendSettings(true, function() {}, openConfiguration);
@@ -224,7 +401,28 @@ Pebble.addEventListener('webviewclosed', function(event) {
     return;
   }
 
-  if (!configuration || typeof configuration.language !== 'number' ||
+  if (configuration && configuration.action === 'page') {
+    if (typeof configuration.historyOffset !== 'number' ||
+        configuration.historyOffset % 1 !== 0 ||
+        configuration.historyOffset < 0 ||
+        configuration.historyOffset % MOBILE_HISTORY_PAGE_SIZE !== 0 ||
+        (configuration.language !== LANGUAGE_ENGLISH &&
+         configuration.language !== LANGUAGE_FRENCH) ||
+        typeof configuration.saveStatistics !== 'boolean') {
+      console.log('Rejected history page offset');
+      return;
+    }
+    configurationHistoryOffset = configuration.historyOffset;
+    configurationDraftLanguage = configuration.language;
+    configurationDraftStatistics = configuration.saveStatistics;
+    configurationOpenPending = true;
+    openConfiguration();
+    return;
+  }
+
+  if (!configuration ||
+      (configuration.action !== undefined && configuration.action !== 'save') ||
+      typeof configuration.language !== 'number' ||
       (configuration.language !== LANGUAGE_ENGLISH &&
        configuration.language !== LANGUAGE_FRENCH) ||
       typeof configuration.saveStatistics !== 'boolean') {
@@ -236,10 +434,12 @@ Pebble.addEventListener('webviewclosed', function(event) {
                        String(configuration.language));
   localStorage.setItem(STORAGE_KEY_STATISTICS,
                        configuration.saveStatistics ? '1' : '0');
+  configurationDraftLanguage = null;
+  configurationDraftStatistics = null;
   sendSettings(false);
 });
 
-/* Replaces the mobile mirror only after strict schema and CRC validation. */
+/* Merges a complete watch snapshot into the longer on-phone archive. */
 Pebble.addEventListener('appmessage', function(event) {
   var bytes = event && event.payload
     ? event.payload[messageKeys.HISTORY_DATA] : null;
@@ -270,10 +470,15 @@ Pebble.addEventListener('appmessage', function(event) {
     pendingHistory.nextPage += 1;
   }
   if (pendingHistory.sessions.length === pendingHistory.count) {
-    localStorage.setItem(STORAGE_KEY_HISTORY,
-                         JSON.stringify(pendingHistory.sessions));
-    console.log('History mirror updated: ' + pendingHistory.count +
-                ' sessions');
+    var storedState = getStoredHistoryState();
+    var mergedHistory = mergeWatchHistory(storedState,
+                                          pendingHistory.sessions,
+                                          pendingHistory.generation);
+    if (storeHistoryState(mergedHistory, pendingHistory.sessions,
+                          pendingHistory.generation)) {
+      console.log('Mobile history updated: ' + mergedHistory.length +
+                  ' sessions (' + pendingHistory.count + ' on watch)');
+    }
     pendingHistory = null;
     openConfiguration();
   }

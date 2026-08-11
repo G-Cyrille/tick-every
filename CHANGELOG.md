@@ -2,6 +2,30 @@
 
 Toutes les modifications notables de Tick Every sont documentées ici. Le projet suit [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] — 2026-08-11
+
+### Added
+
+- Archive mobile locale sans plafond de sessions imposé par l'app, paginée par
+  groupes de 32 dans Configure.
+
+### Changed
+
+- La montre reste limitée aux 32 sessions récentes ; chaque snapshot est
+  fusionné dans l'archive du téléphone au lieu de la remplacer.
+- Une vibration longue représente maintenant cinq cycles et les vibrations
+  courtes le reste : le cycle 12 produit deux longues puis deux courtes.
+- Le silence entre deux impulsions passe de 50 à 100 ms pour rendre les suites
+  de trois ou quatre vibrations nettement séparées.
+
+### Fixed
+
+- Un historique vide après reset de la montre n'efface plus l'archive mobile.
+- Les erreurs de quota `localStorage` conservent l'archive et le curseur de
+  synchronisation précédents et affichent un avertissement dans Configure.
+- La pagination de l'historique conserve les changements de langue et de
+  statistiques tant que l'utilisateur n'a pas encore appuyé sur Save.
+
 ## [1.1.0] — 2026-08-11
 
 ### Added

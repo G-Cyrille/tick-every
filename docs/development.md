@@ -60,19 +60,21 @@ Exemple obligatoire : avec `D = 10 s` et `X = 5 s`, le double signal arrive à
 
 Le code haptique numérote ensuite chaque cycle :
 
-- cycles 1 à 9 : autant de vibrations courtes ;
-- à partir du cycle 10 : une vibration longue par dizaine, suivie d'une vibration
-  courte par unité ;
-- cycle 12 : une longue puis deux courtes ;
-- cycle 55 : cinq longues puis cinq courtes.
+- cycles 1 à 4 : autant de vibrations courtes ;
+- à partir du cycle 5 : une vibration longue par groupe de cinq, suivie d'une
+  vibration courte par cycle restant ;
+- cycle 7 : une longue puis deux courtes ;
+- cycle 12 : deux longues puis deux courtes ;
+- cycle 55 : onze longues.
 
 Dans l'implémentation, une impulsion courte dure 120 ms, une longue 300 ms et
-deux impulsions sont séparées par 50 ms. Ces durées rendent notamment les
-cycles 1 et 2 nettement plus perceptibles. Le buffer statique accepte jusqu'à
+deux impulsions sont séparées par 100 ms. Cette pause empêche notamment trois
+ou quatre impulsions courtes de se confondre en une vibration continue. Le
+buffer statique accepte jusqu'à
 **63 segments**, donc **32 impulsions** au maximum. Le motif doit aussi finir
 avec au moins 20 ms de marge avant le cycle suivant, afin que deux patterns ne
 se chevauchent pas et que le buffer ne soit pas réutilisé trop tôt. Si le code
-décimal d'un numéro absolu dépasse l'une de ces limites, le motif concerné est
+par groupes de cinq d'un numéro absolu dépasse l'une de ces limites, le motif concerné est
 loggé puis sauté. Le temps actif, le numéro de cycle et l'interface continuent
 sans interruption.
 
@@ -123,10 +125,18 @@ français), `SAVE_STATISTICS` et `HISTORY_REQUEST` par AppMessage.
 La montre valide à nouveau cette valeur, l'écrit sous `PERSIST_KEY_LANGUAGE`
 et redessine l'état courant. Une valeur absente, mal formée ou hors de 0/1 est
 refusée. La montre répond par un snapshot `HISTORY_DATA` versionné et protégé
-par CRC. PebbleKit JS conserve un miroir des 32 entrées dans son `localStorage`
-et le transmet à la page dans un fragment URL compact ; ce fragment n'est pas
-envoyé au serveur HTTP. La montre reste la source canonique et une nouvelle
-demande remplace le miroir du téléphone.
+par CRC. PebbleKit JS fusionne chaque snapshot avec une archive locale
+distincte dans son `localStorage`. L'app n'impose aucun plafond au nombre
+d'entrées sur le téléphone ; la capacité réelle dépend du quota accordé par
+l'OS et la WebView. La page reçoit une seule tranche de 32 entrées dans un
+fragment URL compact, puis ouvre les tranches précédentes ou suivantes à la
+demande ; ce fragment n'est pas envoyé au serveur HTTP.
+
+L'archive et le dernier snapshot montre sont écrits ensemble sous une clé v2.
+La migration importe l'ancien miroir 1.1 sans le supprimer. Un snapshot vide,
+par exemple après un reset de la montre, ne vide donc jamais l'archive mobile.
+La génération et le chevauchement ordonné des snapshots identifient le nouveau
+préfixe tout en conservant de vraies sessions aux champs identiques.
 
 Un snapshot complet est envoyé en trois pages de 252, 252 et 172 octets au
 maximum, chacune protégée par CRC, dans un Outbox de 320 octets. L'Inbox de 124 octets couvre les
@@ -134,7 +144,8 @@ trois entiers de réglage/requête. Un envoi occupé est coalescé puis relancé
 fin de l'envoi en cours ; PebbleKit JS retente trois fois les réglages sur un
 échec temporaire. Le timer et l'historique montre continuent de fonctionner
 sans téléphone ni réseau ; Internet est requis uniquement pour charger la page
-de configuration.
+de configuration. Si plus de 32 sessions sont créées sans synchronisation avec
+le téléphone, celles déjà évincées de la montre ne peuvent pas être récupérées.
 
 ### Interface et mémoire
 
@@ -184,8 +195,9 @@ pebble build
 
 `tests/run.sh` compile la logique portable en C99 avec
 `-Wall -Wextra -Werror -pedantic`, exécute plus de 19 200 assertions, puis teste
-en Node la validation des réglages, le CRC et le décodage de l'historique, le
-miroir local, le format URL compact et les retries côté PebbleKit JS.
+en Node la validation des réglages, le CRC et le décodage de l'historique,
+l'archive mobile, sa migration, sa pagination, le format URL compact et les
+retries côté PebbleKit JS.
 `pebble build` compile la watchapp pour toutes les plateformes déclarées et
 produit `build/tick-every.pbw`.
 
@@ -220,8 +232,8 @@ Tester au minimum ces scénarios :
    l'annulation et la confirmation ;
 6. confirmer l'arrêt, vérifier le retour à Prêt avec temps et cycle à zéro,
    puis relancer par un appui long sur Select ;
-7. vérifier les codes des cycles 1, 9, 12 et 55, puis vérifier qu'un motif hors
-   limite est sauté sans arrêter le compteur ni l'interface ;
+7. vérifier les codes des cycles 1, 4, 5, 7 et 12, puis vérifier qu'un motif
+   hors limite est sauté sans arrêter le compteur ni l'interface ;
 8. relancer l'app et vérifier la persistance de l'intervalle, du délai, du
    toggle haptique et de la langue ;
 9. depuis **Configure** dans l'app mobile, tester English → Français → English,
@@ -230,9 +242,11 @@ Tester au minimum ces scénarios :
     puis vérifier l'entrée sur la montre et dans la page mobile ;
 11. désactiver les statistiques et vérifier qu'une nouvelle session n'est pas
     ajoutée, sans effacer les entrées existantes ;
-12. remplir 32 entrées, ajouter une 33e et vérifier l'éviction de la plus
-    ancienne ;
-13. contrôler le rendu sur basalt, chalk et aplite au minimum.
+12. remplir 32 entrées, ajouter une 33e et vérifier que la montre évince la
+    plus ancienne alors que le téléphone conserve bien 33 entrées ;
+13. vérifier la pagination mobile avec plus de 64 entrées, puis vérifier qu'un
+    snapshot vide de la montre n'efface pas l'archive du téléphone ;
+14. contrôler le rendu sur basalt, chalk et aplite au minimum.
 
 Lors des vibrations, l'émulateur peut écrire des warnings de la forme
 `PHONESIM ... QemuInboundPacket.footer`. Ils viennent de la simulation QEMU et
