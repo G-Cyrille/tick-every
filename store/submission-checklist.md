@@ -47,9 +47,9 @@
 - [x] Compte vérifié avec `pebble login --status`
 - [x] Fiche et assets relus une dernière fois
 - [x] Autorisation explicite de publication reçue
-- [ ] Publication 1.1.0 déclenchée
-- [ ] Description Appstore mise à jour avec l'historique des 32 sessions
-- [ ] Page Appstore, PBW et screenshots contrôlés après publication 1.1.0
+- [x] Publication 1.1.0 déclenchée
+- [x] Description Appstore mise à jour avec l'historique des 32 sessions
+- [x] Page Appstore, PBW et screenshots contrôlés après publication 1.1.0
 
 Appstore ID : `f64d58f70cb8458390cd7749`
 

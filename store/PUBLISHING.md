@@ -70,24 +70,15 @@ pebble publish \
   --category tools \
   --icon-small store/assets/icon-80.png \
   --icon-large store/assets/icon-144.png \
-  --screenshots \
-    store/screenshots/aplite_timer.png \
-    store/screenshots/basalt_timer.png \
-    store/screenshots/basalt_delay-10s.png \
-    store/screenshots/basalt_haptics.png \
-    store/screenshots/basalt_ready.png \
-    store/screenshots/basalt_start-delay.png \
-    store/screenshots/basalt_cycle-3.png \
-    store/screenshots/basalt_history.png \
-    store/screenshots/chalk_timer.png \
-    store/screenshots/diorite_timer.png \
-    store/screenshots/emery_timer.png \
-    store/screenshots/flint_timer.png \
-    store/screenshots/gabbro_timer.png
+  --screenshots store/screenshots/basalt_history.png
 ```
 
 The tool rebuilds the PBW before uploading it. Do not modify source or assets
 between the final verification and this command.
+
+For an existing app, the upload adds the supplied screenshots to the current
+listing. The 1.1.0 command therefore sends only the new history capture; the
+platform screenshots from 1.0.0 remain attached.
 
 ## Post-publication checks
 

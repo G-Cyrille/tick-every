@@ -14,9 +14,9 @@
   "releaseUrl": "https://s3.grossholtz.net/public/tick-every/2026/08/85046a7c-1683-4a1f-9dd3-8229e9b8e840-tick-every-v1.1.0.pbw",
   "appStoreId": "f64d58f70cb8458390cd7749",
   "appStoreUrl": "https://apps.repebble.com/f64d58f70cb8458390cd7749",
-  "appStoreStatus": "1.0.0 published; 1.1.0 not submitted",
-  "appStoreVersion": "1.0.0",
-  "appStoreReleaseUrl": "https://appstore-api.repebble.com/api/assets/pbw/f64d58f70cb8458390cd7749/1.0.0/5e65c8ee-9d12-4ab5-bae0-1d7aa6df0089.pbw",
+  "appStoreStatus": "1.1.0 published",
+  "appStoreVersion": "1.1.0",
+  "appStoreReleaseUrl": "https://appstore-api.repebble.com/api/assets/pbw/f64d58f70cb8458390cd7749/1.1.0/95cf436b-68ec-4e03-9fab-e9882f9ec064.pbw",
   "platforms": [
     "aplite",
     "basalt",
@@ -33,5 +33,5 @@
     "screenshots": "store/screenshots"
   },
   "configurationUrl": "https://s3.grossholtz.net/public/tick-every/config/2026/08/fcb3afc5-e97f-4602-bcbe-b8ff756a7508-config.html",
-  "notes": "Version 1.1.0 is prepared locally but not submitted. Pebble Tool 5.0.39 publishes immediately."
+  "notes": "Version 1.1.0 was published on 2026-08-11. The live description and PBW checksum were verified after publication."
 }
