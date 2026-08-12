@@ -6,8 +6,7 @@
 - [x] Nom du package : `tick-every`
 - [x] UUID stable : `0987ccfa-3f0c-4225-bea5-140db3a87514`
 - [x] Version initiale : `1.0.0`
-- [x] Dernière version publiée : `1.2.0`
-- [ ] Version en cours de publication : `1.2.1`
+- [x] Dernière version publiée : `1.2.1`
 - [x] Catégorie : `Tools & Utilities` (`tools`)
 - [x] Nom public du développeur : `G-Cyrille`
 - [x] Adresse de support : `oiawo.cir@gmail.com`
@@ -57,8 +56,8 @@
 - [x] Page Appstore, PBW et screenshots contrôlés après publication 1.1.0
 - [x] Publication 1.2.0 déclenchée
 - [x] Description, release notes, PBW et nouveau screenshot contrôlés après publication 1.2.0
-- [ ] Publication 1.2.1 déclenchée
-- [ ] Release notes et PBW contrôlés après publication 1.2.1
+- [x] Publication 1.2.1 déclenchée
+- [x] Release notes et PBW contrôlés après publication 1.2.1 — SHA-256 du PBW servi par le store identique au PBW de release
 
 Appstore ID : `f64d58f70cb8458390cd7749`
 

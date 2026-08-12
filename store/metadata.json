@@ -11,12 +11,12 @@
   "supportEmail": "oiawo.cir@gmail.com",
   "privacyPolicyUrl": "https://s3.grossholtz.net/public/tick-every/privacy/2026/08/3c23e364-e333-4c11-a4dd-eb6b26d195be-privacy-policy.html",
   "tutorialUrl": "https://s3.grossholtz.net/public/tick-every/tutorial/2026/08/bd58c83f-5efb-4653-976b-41b127b9e74c-tutorial.html",
-  "releaseUrl": "https://s3.grossholtz.net/public/tick-every/release/2026/08/8c5ecb7e-1fad-44c5-b9fb-679a222c1419-tick-every-v1.2.0.pbw",
+  "releaseUrl": "https://s3.grossholtz.net/public/tick-every/release/2026/08/62a16b71-f299-4261-b14a-df441a1d49c5-tick-every-v1.2.1.pbw",
   "appStoreId": "f64d58f70cb8458390cd7749",
   "appStoreUrl": "https://apps.repebble.com/f64d58f70cb8458390cd7749",
-  "appStoreStatus": "1.2.0 published",
-  "appStoreVersion": "1.2.0",
-  "appStoreReleaseUrl": "https://appstore-api.repebble.com/api/assets/pbw/f64d58f70cb8458390cd7749/1.2.0/594dd3b3-5502-467c-9f4c-36c41870063d.pbw",
+  "appStoreStatus": "1.2.1 published",
+  "appStoreVersion": "1.2.1",
+  "appStoreReleaseUrl": "https://appstore-api.repebble.com/api/assets/pbw/f64d58f70cb8458390cd7749/1.2.1/5eeae0ed-1c6e-4130-9973-845c48c4ded0.pbw",
   "platforms": [
     "aplite",
     "basalt",
@@ -33,5 +33,5 @@
     "screenshots": "store/screenshots"
   },
   "configurationUrl": "https://s3.grossholtz.net/public/tick-every/config/2026/08/b6e5dc60-4cdb-447e-9f9f-54c41ea8a9a1-config.html",
-  "notes": "Version 1.2.0 was published on 2026-08-11."
+  "notes": "Version 1.2.1 was published on 2026-08-12."
 }
