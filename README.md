@@ -199,6 +199,8 @@ and `gabbro`.
 ### Contribute
 
 Bug reports, feature ideas, translations and tested pull requests are welcome.
+Don't hesitate to contact me with improvement ideas or feedback, however small:
+the easiest way is to [open an issue](https://github.com/G-Cyrille/tick-every/issues/new/choose).
 
 1. Search the existing issues, then use the appropriate
    [issue template](https://github.com/G-Cyrille/tick-every/issues/new/choose).
