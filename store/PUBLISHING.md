@@ -1,11 +1,11 @@
 # Publishing Tick Every
 
-This runbook prepares and publishes Tick Every 1.2.0 to the Pebble Appstore.
+This runbook prepares and publishes Tick Every 1.2.1 to the Pebble Appstore.
 Run it only from the repository root after the release commit and GitHub URL
 exist.
 
-Version 1.2.0 was published as Appstore ID
-`f64d58f70cb8458390cd7749`. Its public listing is
+Versions up to 1.2.0 were published as Appstore ID
+`f64d58f70cb8458390cd7749`. The public listing is
 <https://apps.repebble.com/f64d58f70cb8458390cd7749>.
 
 ## Important: publication is immediate
@@ -22,7 +22,7 @@ Do not run the final command without the maintainer's explicit approval.
 - The public repository exists at `https://github.com/G-Cyrille/tick-every`.
 - The release commit contains the final source, README, screenshots and
   privacy policy.
-- `store/release/tick-every-v1.2.0.pbw` matches `build/tick-every.pbw`.
+- `store/release/tick-every-v1.2.1.pbw` matches `build/tick-every.pbw`.
 - `store/SHA256SUMS` matches the release PBW.
 - The Pebble CLI is logged into the same Pebble Account as the mobile app.
 - Every completed item in `store/submission-checklist.md` has been checked.
@@ -32,14 +32,14 @@ Do not run the final command without the maintainer's explicit approval.
 ```sh
 ./tests/run.sh
 pebble build
-shasum -a 256 store/release/tick-every-v1.2.0.pbw
+shasum -a 256 store/release/tick-every-v1.2.1.pbw
 pebble login --status
 ```
 
 The expected SHA-256 for this build is:
 
 ```text
-1567dd61ed420b1f21dc1023a00893c561144327bfb83bfaab31266d13b09991
+d15d2d32ee0f57c6bd3c8f285829afedf2637d6d9414dd48cae04895ecaf4e9e
 ```
 
 Open and inspect at least these files before publishing:
@@ -53,8 +53,6 @@ Open and inspect at least these files before publishing:
 
 ## Publish from the CLI
 
-The `--screenshots` argument consumes all following paths, so keep it last.
-
 ```sh
 TICK_EVERY_DESCRIPTION="$(<store/description.txt)"
 TICK_EVERY_RELEASE_NOTES="$(<store/release-notes.md)"
@@ -63,22 +61,23 @@ pebble publish \
   --non-interactive \
   --no-gif-all-platforms \
   --name "Tick Every" \
-  --version "1.2.0" \
+  --version "1.2.1" \
   --description "$TICK_EVERY_DESCRIPTION" \
   --release-notes "$TICK_EVERY_RELEASE_NOTES" \
   --source "https://github.com/G-Cyrille/tick-every" \
   --category tools \
   --icon-small store/assets/icon-80.png \
-  --icon-large store/assets/icon-144.png \
-  --screenshots store/screenshots/basalt_haptics.png
+  --icon-large store/assets/icon-144.png
 ```
 
 The tool rebuilds the PBW before uploading it. Do not modify source or assets
 between the final verification and this command.
 
-For an existing app, the upload adds the supplied screenshots to the current
-listing. The 1.2.0 command therefore sends only the updated haptics capture;
-the platform and history screenshots already attached remain available.
+For an existing app, `--screenshots` adds the supplied files to the current
+listing. 1.2.1 changes no UI, so the command above sends no new screenshot and
+the images already attached to the listing remain unchanged. When screenshots
+are needed again, add `--screenshots` as the last argument: it consumes every
+following path.
 
 ## Post-publication checks
 

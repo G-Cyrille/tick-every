@@ -1,7 +1,7 @@
 {
   "name": "Tick Every",
   "package": "tick-every",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "uuid": "0987ccfa-3f0c-4225-bea5-140db3a87514",
   "type": "watchapp",
   "category": "tools",

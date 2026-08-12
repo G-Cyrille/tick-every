@@ -17,6 +17,18 @@
 
 ## News
 
+### 2026-08-12 — Phone history sync fixed / Synchronisation corrigée
+
+Tick Every 1.2.1 fixes the mobile archive on the real Pebble mobile app: the
+history snapshots sent by the watch were silently ignored, so completed
+sessions never appeared in Configure. Nothing is lost — the watch keeps its 32
+latest sessions and resynchronizes them on the next launch.
+
+Tick Every 1.2.1 corrige l'archive mobile dans la vraie app Pebble : les
+snapshots d'historique envoyés par la montre étaient ignorés et les sessions
+terminées n'apparaissaient jamais dans Configure. Rien n'est perdu : la montre
+conserve ses 32 dernières sessions et les resynchronise au prochain lancement.
+
 ### 2026-08-11 — Mobile archive and clearer haptics
 
 The watch still keeps its 32 latest sessions, while the phone now merges them

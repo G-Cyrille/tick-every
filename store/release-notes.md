@@ -1,5 +1,19 @@
 # Release notes
 
+## 1.2.1 — English
+
+Fixes phone history synchronization in the Pebble mobile app: session
+snapshots sent by the watch were ignored, so the Configure archive stayed
+empty. The watch keeps its 32 latest sessions and resynchronizes them
+automatically after updating.
+
+## 1.2.1 — Français
+
+Corrige la synchronisation de l'historique dans l'app mobile Pebble : les
+snapshots envoyés par la montre étaient ignorés et l'archive de Configure
+restait vide. La montre conserve ses 32 dernières sessions et les
+resynchronise automatiquement après la mise à jour.
+
 ## 1.2.0 — English
 
 The watch still keeps 32 recent sessions, while the phone now archives every

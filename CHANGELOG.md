@@ -2,6 +2,16 @@
 
 Toutes les modifications notables de Tick Every sont documentées ici. Le projet suit [Semantic Versioning](https://semver.org/).
 
+## [1.2.1] — 2026-08-12
+
+### Fixed
+
+- L'app mobile Pebble indexe le payload AppMessage par nom de clé
+  (`HISTORY_DATA`) alors que l'émulateur fournit aussi la clé numérique. Le
+  handler PKJS ne lisait que la clé numérique : chaque snapshot d'historique
+  reçu du vrai téléphone était ignoré et l'archive mobile restait vide. Les
+  deux formes sont maintenant acceptées.
+
 ## [1.2.0] — 2026-08-11
 
 ### Added

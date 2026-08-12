@@ -7,6 +7,7 @@
 - [x] UUID stable : `0987ccfa-3f0c-4225-bea5-140db3a87514`
 - [x] Version initiale : `1.0.0`
 - [x] Dernière version publiée : `1.2.0`
+- [ ] Version en cours de publication : `1.2.1`
 - [x] Catégorie : `Tools & Utilities` (`tools`)
 - [x] Nom public du développeur : `G-Cyrille`
 - [x] Adresse de support : `oiawo.cir@gmail.com`
@@ -20,12 +21,16 @@
 - [x] PBW final 1.2.0 copié dans `store/release/`
 - [x] SHA-256 du PBW 1.2.0 enregistré
 - [x] Version, UUID, auteur, capability et plateformes du PBW 1.2.0 contrôlés
+- [x] PBW final 1.2.1 copié dans `store/release/`
+- [x] SHA-256 du PBW 1.2.1 enregistré
+- [x] Version, UUID et plateformes du PBW 1.2.1 contrôlés
 
 ## Fiche Appstore
 
 - [x] Description française
 - [x] Description anglaise
 - [x] Release notes 1.2.0 préparées
+- [x] Release notes 1.2.1 préparées
 - [x] Privacy policy
 - [x] Icônes Appstore 80×80 et 144×144
 - [x] Banner 720×320
@@ -52,6 +57,8 @@
 - [x] Page Appstore, PBW et screenshots contrôlés après publication 1.1.0
 - [x] Publication 1.2.0 déclenchée
 - [x] Description, release notes, PBW et nouveau screenshot contrôlés après publication 1.2.0
+- [ ] Publication 1.2.1 déclenchée
+- [ ] Release notes et PBW contrôlés après publication 1.2.1
 
 Appstore ID : `f64d58f70cb8458390cd7749`
 
