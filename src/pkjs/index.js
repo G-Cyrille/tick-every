@@ -440,9 +440,11 @@ Pebble.addEventListener('webviewclosed', function(event) {
 });
 
 /* Merges a complete watch snapshot into the longer on-phone archive. */
+/* The mobile app delivers payload keys by name; the emulator by number. */
 Pebble.addEventListener('appmessage', function(event) {
   var bytes = event && event.payload
-    ? event.payload[messageKeys.HISTORY_DATA] : null;
+    ? event.payload.HISTORY_DATA || event.payload[messageKeys.HISTORY_DATA]
+    : null;
   var page;
   var index;
   if (!bytes) return;

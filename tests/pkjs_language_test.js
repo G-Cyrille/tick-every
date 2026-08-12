@@ -281,10 +281,9 @@ pageSessions.push(session);
 var page0 = makeHistoryPage(pageSessions.slice(0, 12), 32, 0, 38);
 var page1 = makeHistoryPage(pageSessions.slice(12, 24), 32, 1, 38);
 var page2 = makeHistoryPage(pageSessions.slice(24, 32), 32, 2, 38);
+/* The real mobile app keys the payload by name, unlike the emulator. */
 function deliverHistory(bytes) {
-  var payload = {};
-  payload[HISTORY_DATA] = bytes;
-  handlers.appmessage({payload:payload});
+  handlers.appmessage({payload:{HISTORY_DATA: bytes}});
 }
 function deliverSnapshot(sessions, generation) {
   deliverHistory(makeHistoryPage(sessions.slice(0, 12), sessions.length,
