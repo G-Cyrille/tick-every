@@ -40,7 +40,8 @@
     .session { position:relative; overflow:hidden; padding:15px 16px 14px 20px; border:1px solid rgba(16,42,67,.15); border-radius:13px; background:var(--white); box-shadow:0 3px 0 rgba(16,42,67,.08); }
     .session::before { content:""; position:absolute; inset:0 auto 0 0; width:6px; background:var(--green); }
     .session:nth-child(even)::before { background:var(--orange); }
-    .session-time { margin:0 0 8px; font-weight:800; }
+    .session-time { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin:0 0 8px; font-weight:800; }
+    .session-duration { flex:0 0 auto; font-size:19px; }
     .metrics { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px 14px; margin:0; }
     .metric { color:#334e68; font-size:15px; }
     .metric b { color:var(--ink); }
@@ -183,10 +184,10 @@
           if (!session || typeof session.endedAt !== 'number') return;
           var ended = formatDate(session.endedAt, locale);
           html += '<article class="session">' +
-            '<p class="session-time">' + escapeText(ended) + '</p>' +
+            '<p class="session-time"><span>' + escapeText(ended) + '</span>' +
+              '<span class="session-duration" title="Tick duration · Durée des ticks">' +
+                escapeText(formatDuration(session.activeDuration)) + '</span></p>' +
             '<div class="metrics">' +
-              '<span class="metric"><b>Total:</b> ' + escapeText(formatDuration(session.totalDuration)) + '</span>' +
-              '<span class="metric"><b>Active:</b> ' + escapeText(formatDuration(session.activeDuration)) + '</span>' +
               '<span class="metric"><b>Cycles:</b> ' + escapeText(session.cycles) + '</span>' +
               '<span class="metric"><b>Interval:</b> ' + escapeText(session.interval) + ' s</span>' +
               '<span class="metric"><b>Delay:</b> ' + escapeText(session.delay) + ' s</span>' +

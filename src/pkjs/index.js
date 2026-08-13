@@ -1,6 +1,6 @@
 var messageKeys = require('message_keys');
 
-var CONFIG_URL = 'https://s3.grossholtz.net/public/tick-every/config/2026/08/b6e5dc60-4cdb-447e-9f9f-54c41ea8a9a1-config.html';
+var CONFIG_URL = 'https://s3.grossholtz.net/public/keep/tick-every/config/2026/08/2026/08/a07f9cd4-8860-4bd1-84a1-d643750733a3-config.html';
 var STORAGE_KEY_LANGUAGE = 'tick-every-language';
 var STORAGE_KEY_STATISTICS = 'tick-every-save-statistics';
 var STORAGE_KEY_HISTORY = 'tick-every-session-history';

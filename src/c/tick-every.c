@@ -1037,8 +1037,7 @@ static void prv_draw_history(GContext *ctx, GRect bounds) {
   const int16_t row_height = (footer_y - content_top) / (int16_t)visible_rows;
   const GFont title_font = fonts_get_system_font(
       round && !tall ? FONT_KEY_GOTHIC_14_BOLD : FONT_KEY_GOTHIC_18_BOLD);
-  const GFont date_font = fonts_get_system_font(
-      round && !tall ? FONT_KEY_GOTHIC_14_BOLD : FONT_KEY_GOTHIC_18_BOLD);
+  const GFont row_font = fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD);
   const GFont detail_font = fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD);
   char position[16];
   unsigned int row;
@@ -1081,6 +1080,7 @@ static void prv_draw_history(GContext *ctx, GRect bounds) {
       char date_text[20];
       char duration_text[16];
       char detail_text[40];
+      int16_t duration_width;
       const TickSession *session;
 
       if (index >= s_history.count) {
@@ -1107,16 +1107,24 @@ static void prv_draw_history(GContext *ctx, GRect bounds) {
 
       prv_format_history_date(session->ended_at, date_text,
                               sizeof(date_text));
-      prv_format_time(session->total_duration_seconds, duration_text,
+      prv_format_time(session->active_duration_seconds, duration_text,
                       sizeof(duration_text));
-      snprintf(detail_text, sizeof(detail_text), "%s · %luC · %us",
-               duration_text, (unsigned long)session->cycles,
-               session->interval_seconds);
-      prv_draw_text(ctx, date_text, date_font,
+      snprintf(detail_text, sizeof(detail_text), "D %us · %lu tick%s",
+               session->delay_seconds, (unsigned long)session->cycles,
+               session->cycles == 1U ? "" : "s");
+      duration_width = row_rect.size.w >= 170 ? 70 : 54;
+      prv_draw_text(ctx, date_text, row_font,
                     GRect(row_rect.origin.x + 8, row_rect.origin.y - 1,
-                          row_rect.size.w - 12, row_rect.size.h / 2 + 3),
+                          row_rect.size.w - duration_width - 14,
+                          row_rect.size.h / 2 + 3),
                     GTextAlignmentLeft, GColorBlack);
-      prv_draw_text(ctx, detail_text, detail_font,
+      prv_draw_text(ctx, duration_text, row_font,
+                    GRect(row_rect.origin.x + row_rect.size.w -
+                              duration_width - 4,
+                          row_rect.origin.y - 1, duration_width,
+                          row_rect.size.h / 2 + 3),
+                    GTextAlignmentRight, GColorBlack);
+      prv_draw_text(ctx, detail_text, row_font,
                     GRect(row_rect.origin.x + 8,
                           row_rect.origin.y + row_rect.size.h / 2 - 3,
                           row_rect.size.w - 12, row_rect.size.h / 2 + 2),

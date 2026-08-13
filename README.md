@@ -77,9 +77,10 @@ enabled. Hold **Select** for 0.7 seconds to start.
 Open **Configure** in the Pebble mobile app to change the watch language or
 enable **Save session history**. Statistics are disabled by default. When
 enabled before a session starts and still enabled when it stops, Tick Every
-saves its end date, total and active durations, cycle count, interval, delay
-and haptic setting. PebbleKit JS merges each 32-session watch snapshot into a
-separate local phone archive, which Configure displays in pages of 32.
+saves its end date, active tick duration, cycle count, interval, delay and
+haptic setting. The displayed duration excludes the start delay and pauses.
+PebbleKit JS merges each 32-session watch snapshot into a separate local phone
+archive, which Configure displays in pages of 32.
 
 For a 10-second delay and a 5-second interval:
 
@@ -265,8 +266,9 @@ Vibrations → Prêt**.
 - L'historique est désactivé par défaut. Une session est enregistrée seulement
   si l'option était active à son démarrage et l'est encore à son arrêt manuel.
   Un arrêt pendant le délai ou une fermeture brutale ne crée pas d'entrée.
-- L'historique contient la date de fin, la durée totale, la durée active, les
-  cycles, l'intervalle, le délai et l'état des vibrations. À la 33e session,
+- L'historique affiche la date de fin, la durée active des ticks, les cycles,
+  l'intervalle, le délai et l'état des vibrations. Cette durée exclut le délai
+  de départ et les pauses. À la 33e session,
   la montre remplace la plus ancienne ; le téléphone conserve les sessions
   déjà synchronisées.
 - Les réglages et l'historique restent locaux à la montre et au téléphone :

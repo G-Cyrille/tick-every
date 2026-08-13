@@ -95,9 +95,10 @@ l'utilisateur arrête explicitement.
 
 Chaque entrée contient : timestamp de fin, durée totale depuis la demande de
 départ, durée active hors pauses, nombre de cycles, intervalle, délai et état du
-comptage haptique. La durée totale inclut le délai et les pauses ; la durée
-active correspond au compteur visible. Les champs longs sont saturés à
-`UINT32_MAX`, soit environ 136 ans à une seconde près.
+comptage haptique. Les historiques affichent la durée active, qui correspond au
+compteur visible et exclut le délai de départ. La durée totale reste stockée pour
+la compatibilité du format et inclut le délai et les pauses. Les champs longs
+sont saturés à `UINT32_MAX`, soit environ 136 ans à une seconde près.
 
 La montre conserve les **32 dernières sessions**, de la plus récente à la plus
 ancienne. La 33e remplace la plus ancienne. Un appui long sur Select depuis le
