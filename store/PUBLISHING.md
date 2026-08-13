@@ -1,10 +1,10 @@
 # Publishing Tick Every
 
-This runbook prepares and publishes Tick Every 1.2.1 to the Pebble Appstore.
+This runbook prepares and publishes Tick Every 1.2.2 to the Pebble Appstore.
 Run it only from the repository root after the release commit and GitHub URL
 exist.
 
-Versions up to 1.2.0 were published as Appstore ID
+Versions up to 1.2.1 were published as Appstore ID
 `f64d58f70cb8458390cd7749`. The public listing is
 <https://apps.repebble.com/f64d58f70cb8458390cd7749>.
 
@@ -22,7 +22,7 @@ Do not run the final command without the maintainer's explicit approval.
 - The public repository exists at `https://github.com/G-Cyrille/tick-every`.
 - The release commit contains the final source, README, screenshots and
   privacy policy.
-- `store/release/tick-every-v1.2.1.pbw` matches `build/tick-every.pbw`.
+- `store/release/tick-every-v1.2.2.pbw` matches `build/tick-every.pbw`.
 - `store/SHA256SUMS` matches the release PBW.
 - The Pebble CLI is logged into the same Pebble Account as the mobile app.
 - Every completed item in `store/submission-checklist.md` has been checked.
@@ -32,14 +32,14 @@ Do not run the final command without the maintainer's explicit approval.
 ```sh
 ./tests/run.sh
 pebble build
-shasum -a 256 store/release/tick-every-v1.2.1.pbw
+shasum -a 256 store/release/tick-every-v1.2.2.pbw
 pebble login --status
 ```
 
 The expected SHA-256 for this build is:
 
 ```text
-d15d2d32ee0f57c6bd3c8f285829afedf2637d6d9414dd48cae04895ecaf4e9e
+7640a99059c2edded6ecf1fbbffd3637ffe9f772106b3beb281545ccbef58442
 ```
 
 Open and inspect at least these files before publishing:
@@ -61,7 +61,7 @@ pebble publish \
   --non-interactive \
   --no-gif-all-platforms \
   --name "Tick Every" \
-  --version "1.2.1" \
+  --version "1.2.2" \
   --description "$TICK_EVERY_DESCRIPTION" \
   --release-notes "$TICK_EVERY_RELEASE_NOTES" \
   --source "https://github.com/G-Cyrille/tick-every" \
@@ -74,10 +74,10 @@ The tool rebuilds the PBW before uploading it. Do not modify source or assets
 between the final verification and this command.
 
 For an existing app, `--screenshots` adds the supplied files to the current
-listing. 1.2.1 changes no UI, so the command above sends no new screenshot and
-the images already attached to the listing remain unchanged. When screenshots
-are needed again, add `--screenshots` as the last argument: it consumes every
-following path.
+listing. The command above sends no screenshot, so the listing keeps its
+existing images without creating duplicates. Updated history screenshots stay
+in the repository as references. When screenshots need to be added again, use
+`--screenshots` as the last argument: it consumes every following path.
 
 ## Post-publication checks
 
@@ -92,9 +92,11 @@ following path.
 7. Enable session saving in **Configure**, stop a completed session, then check
    that it appears both in mobile Configure and in the watch history opened by
    holding **Select** on the Timer screen.
-8. Verify that the phone archive grows beyond 32 sessions while the watch keeps
+8. With a 10-second delay and 60 seconds of active ticks, verify that both
+   histories show `1:00`, not `1:10`.
+9. Verify that the phone archive grows beyond 32 sessions while the watch keeps
    only its 32 most recent entries.
-9. Check cycles 4, 5, 7 and 12 on a physical watch: one long pulse represents
+10. Check cycles 4, 5, 7 and 12 on a physical watch: one long pulse represents
    five cycles and adjacent short pulses remain distinct.
 
 If a release-blocking problem appears, stop promoting the listing and use the

@@ -2,6 +2,21 @@
 
 Toutes les modifications notables de Tick Every sont documentées ici. Le projet suit [Semantic Versioning](https://semver.org/).
 
+## [1.2.2] — 2026-08-13
+
+### Fixed
+
+- La durée affichée dans les historiques montre et téléphone correspond
+  maintenant au temps actif des ticks. Le délai de départ et les pauses ne
+  sont plus inclus dans cette valeur.
+
+### Changed
+
+- Sur la montre, chaque session affiche la date et la durée des ticks sur la
+  première ligne, puis le délai de départ et le nombre de ticks sur la seconde.
+- Sur le téléphone, la durée des ticks apparaît à droite de la date ; le reste
+  des informations reste affiché dessous.
+
 ## [1.2.1] — 2026-08-12
 
 ### Fixed

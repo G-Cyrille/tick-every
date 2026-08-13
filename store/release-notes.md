@@ -1,5 +1,18 @@
 # Release notes
 
+## 1.2.2 — English
+
+History now shows the active tick duration instead of including the start
+delay and pauses. The watch displays date and duration first, then delay and
+tick count. Existing sessions are corrected automatically.
+
+## 1.2.2 — Français
+
+L'historique affiche maintenant la durée active des ticks sans inclure le
+délai de départ ni les pauses. La montre affiche d'abord la date et la durée,
+puis le délai et le nombre de ticks. Les sessions existantes sont corrigées
+automatiquement.
+
 ## 1.2.1 — English
 
 Fixes phone history synchronization in the Pebble mobile app: session

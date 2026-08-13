@@ -23,6 +23,9 @@
 - [x] PBW final 1.2.1 copié dans `store/release/`
 - [x] SHA-256 du PBW 1.2.1 enregistré
 - [x] Version, UUID et plateformes du PBW 1.2.1 contrôlés
+- [x] PBW final 1.2.2 copié dans `store/release/`
+- [x] SHA-256 du PBW 1.2.2 enregistré
+- [x] Version, UUID et plateformes du PBW 1.2.2 contrôlés
 
 ## Fiche Appstore
 
@@ -30,6 +33,7 @@
 - [x] Description anglaise
 - [x] Release notes 1.2.0 préparées
 - [x] Release notes 1.2.1 préparées
+- [x] Release notes 1.2.2 préparées
 - [x] Privacy policy
 - [x] Icônes Appstore 80×80 et 144×144
 - [x] Banner 720×320
@@ -58,6 +62,9 @@
 - [x] Description, release notes, PBW et nouveau screenshot contrôlés après publication 1.2.0
 - [x] Publication 1.2.1 déclenchée
 - [x] Release notes et PBW contrôlés après publication 1.2.1 — SHA-256 du PBW servi par le store identique au PBW de release
+- [x] Autorisation explicite de publication 1.2.2 reçue
+- [ ] Publication 1.2.2 déclenchée
+- [ ] Release notes et PBW contrôlés après publication 1.2.2
 
 Appstore ID : `f64d58f70cb8458390cd7749`
 

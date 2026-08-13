@@ -17,6 +17,17 @@
 
 ## News
 
+### 2026-08-13 — Accurate history durations / Durées corrigées
+
+Tick Every 1.2.2 shows only active tick time as the session duration in watch
+and phone history. The start delay and pauses are no longer included. Existing
+sessions are corrected too because the active duration was already stored.
+
+Tick Every 1.2.2 affiche uniquement le temps actif des ticks comme durée de
+session dans les historiques montre et téléphone. Le délai de départ et les
+pauses ne sont plus inclus. Les sessions existantes sont aussi corrigées car
+leur durée active était déjà enregistrée.
+
 ### 2026-08-12 — Phone history sync fixed / Synchronisation corrigée
 
 Tick Every 1.2.1 fixes the mobile archive on the real Pebble mobile app: the
